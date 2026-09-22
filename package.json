@@ -1,0 +1,24 @@
+{
+  "name": "deepseek-enhancer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DeepSeek Web 增强插件：选中引用到输入框（Manifest V3）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:e2e-real": "node e2e/real-page-inspect.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0",
+    "@playwright/test": "^1.63.0",
+    "@types/chrome": "^0.0.280",
+    "jsdom": "^24.0.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0",
+    "vitest": "^2.1.0"
+  }
+}

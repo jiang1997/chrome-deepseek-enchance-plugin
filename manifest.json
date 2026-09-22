@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "DeepSeek Enhancer",
+  "version": "0.1.0",
+  "description": "选中 DeepSeek 回答文本，一键引用到输入框继续提问（本地运行，不上传数据）。",
+  "minimum_chrome_version": "116",
+  "content_scripts": [
+    {
+      "matches": ["https://chat.deepseek.com/*"],
+      "js": ["src/content.ts"],
+      "css": ["src/styles/popup.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

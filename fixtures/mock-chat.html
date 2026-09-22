@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeepSeek Enhancer 模拟聊天页</title>
+  <style>
+    body { display: flex; margin: 0; font-family: sans-serif; }
+    aside { width: 220px; background: #f3f4f6; padding: 12px; }
+    main { flex: 1; padding: 24px; padding-bottom: 160px; }
+    .msg { max-width: 720px; margin: 16px 0; line-height: 1.7; }
+    .composer-wrap { position: fixed; left: 220px; right: 0; bottom: 0; padding: 16px 24px; background: #fff; border-top: 1px solid #e5e7eb; }
+    #composer { width: min(720px, 90%); min-height: 56px; }
+  </style>
+</head>
+<body>
+  <aside>
+    <div role="search"><input role="textbox" aria-label="搜索" value="" placeholder="搜索对话" /></div>
+    <nav><p>历史对话</p></nav>
+  </aside>
+  <main>
+    <article class="msg" id="msg1">
+      <h3>什么是闭包？</h3>
+      <p>JavaScript 中的闭包会保留其创建时可以访问的词法环境。即使外层函数已经返回，内层函数仍然可以访问外层作用域的变量。</p>
+    </article>
+    <article class="msg" id="msg2">
+      <pre><code>function outer() { const x = 1; return () =&gt; x; }</code></pre>
+    </article>
+  </main>
+  <div class="composer-wrap">
+    <!-- 场景 A：textarea 输入框；如需验证 contenteditable，可将下面替换为 div[contenteditable] -->
+    <textarea id="composer" aria-label="发送消息" placeholder="输入消息，Enter 发送"></textarea>
+  </div>
+</body>
+</html>
