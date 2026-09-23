@@ -9,40 +9,31 @@ beforeEach(() => {
 });
 
 describe("computePopupPosition", () => {
-  it("places above the selection centered by default", () => {
+  it("directly above the composer, same width as the composer", () => {
     const r = computePopupPosition(
-      { top: 300, left: 500, bottom: 320, right: 700, width: 200, height: 20, x: 500, y: 300 },
-      { width: 80, height: 32 },
+      { top: 600, left: 300, bottom: 700, right: 900, width: 600, height: 100, x: 300, y: 600 },
+      44,
       VP,
     );
-    expect(r.placement).toBe("above");
-    expect(r.top).toBe(300 - 32 - 8);
-    expect(r.left).toBe(Math.round(500 + 100 - 40));
+    expect(r).toEqual({ top: 548, left: 300, width: 600 });
   });
 
-  it("flips below when there is not enough room above", () => {
+  it("does not place the prompt below the composer when it is near the top", () => {
     const r = computePopupPosition(
-      { top: 5, left: 500, bottom: 25, right: 700, width: 200, height: 20, x: 500, y: 5 },
-      { width: 80, height: 32 },
+      { top: 30, left: 500, bottom: 90, right: 900, width: 400, height: 60, x: 500, y: 30 },
+      44,
       VP,
     );
-    expect(r.placement).toBe("below");
-    expect(r.top).toBe(25 + 8);
+    expect(r.top).toBe(8);
   });
 
-  it("clamps the horizontal bounds", () => {
+  it("clamps the prompt width and horizontal position when the composer exceeds the viewport", () => {
     const left = computePopupPosition(
-      { top: 300, left: 0, bottom: 320, right: 50, width: 50, height: 20, x: 0, y: 300 },
-      { width: 80, height: 32 },
+      { top: 600, left: -20, bottom: 700, right: 1300, width: 1320, height: 100, x: -20, y: 600 },
+      44,
       VP,
     );
-    expect(left.left).toBeGreaterThanOrEqual(8);
-
-    const right = computePopupPosition(
-      { top: 300, left: 1250, bottom: 320, right: 1280, width: 30, height: 20, x: 1250, y: 300 },
-      { width: 80, height: 32 },
-      VP,
-    );
-    expect(right.left + 80).toBeLessThanOrEqual(VP.width - 8);
+    expect(left.left).toBe(8);
+    expect(left.width).toBe(1264);
   });
 });

@@ -1,8 +1,8 @@
-/** Content script entry: wires selection → popup → composer adapter. */
-import { getSelectionSnapshot, MAX_SELECTION_LENGTH, type SelectionSnapshot } from "./core/selection";
+/** Content script entry: wires selection → prompt above the composer → append quote. */
+import { validateSelection, MAX_SELECTION_LENGTH, type SelectionSnapshot } from "./core/selection";
 import { QuotePopup } from "./core/popup";
 import { formatQuote } from "./core/quote";
-import { findComposerWithRetry, insertIntoComposer } from "./adapters/deepseek-composer";
+import { findComposer, findComposerWithRetry, insertIntoComposer, type ComposerElement } from "./adapters/deepseek-composer";
 
 declare global {
   interface Window {
@@ -12,7 +12,7 @@ declare global {
 
 type PluginState = {
   snapshot: SelectionSnapshot | null;
-  popupVisible: boolean;
+  composer: ComposerElement | null;
 };
 
 const RETRY_TIMEOUT_MS = 300;
@@ -22,35 +22,33 @@ function init(): void {
   if (window.__DSE_INITIALIZED__) return;
   window.__DSE_INITIALIZED__ = true;
 
-  const state: PluginState = { snapshot: null, popupVisible: false };
+  const state: PluginState = { snapshot: null, composer: null };
   const popup = new QuotePopup({ onQuote: handleQuote });
+  let pendingFrame: number | null = null;
 
   function hidePopup(): void {
     popup.hide();
-    state.popupVisible = false;
+    state.snapshot = null;
+    state.composer = null;
   }
 
   function maybeShowPopup(): void {
     // Read on the next frame after the selection event to avoid stale values
-    requestAnimationFrame(() => {
-      const snapshot = getSelectionSnapshot();
-      if (!snapshot) {
-        // Give a hint for over-long selections; hide silently otherwise
-        const sel = window.getSelection();
-        const len = sel ? sel.toString().trim().length : 0;
-        if (len > MAX_SELECTION_LENGTH) {
-          popup.showTransientMessage(`Up to ${MAX_SELECTION_LENGTH} characters can be quoted`);
-          state.popupVisible = true;
-          state.snapshot = null;
-          return;
+    if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
+    pendingFrame = requestAnimationFrame(() => {
+      pendingFrame = null;
+      const result = validateSelection(window.getSelection());
+      const composer = findComposer();
+      if (!result.ok || !composer) {
+        hidePopup();
+        if (!result.ok && result.reason === "too-long" && composer) {
+          popup.showTransientMessage(composer, `Up to ${MAX_SELECTION_LENGTH} characters can be quoted`);
         }
-        if (state.popupVisible) hidePopup();
-        state.snapshot = null;
         return;
       }
-      state.snapshot = snapshot;
-      popup.show(snapshot.rect);
-      state.popupVisible = true;
+      state.snapshot = result.snapshot;
+      state.composer = composer;
+      popup.show(composer, result.snapshot.text);
     });
   }
 
@@ -61,18 +59,19 @@ function init(): void {
       return;
     }
     const quote = formatQuote(snapshot.text);
-    const composer = await findComposerWithRetry(RETRY_TIMEOUT_MS);
+    const composer = state.composer?.isConnected ? state.composer : await findComposerWithRetry(RETRY_TIMEOUT_MS);
     if (!composer) {
-      popup.showTransientMessage("Message composer not found");
+      hidePopup();
       return;
     }
     const ok = insertIntoComposer(composer, quote);
     if (!ok) {
-      popup.showTransientMessage("Insert failed, please try again");
+      popup.showTransientMessage(composer, "Insert failed, please try again");
+      state.snapshot = null;
+      state.composer = null;
       return;
     }
     hidePopup();
-    state.snapshot = null;
   }
 
   document.addEventListener("pointerup", (e) => {
@@ -84,10 +83,7 @@ function init(): void {
   document.addEventListener("keyup", (e) => {
     // Only respond to keys that can change the selection: Shift + arrows / select all / Escape handled separately
     if (e.key === "Escape") {
-      if (state.popupVisible) {
-        hidePopup();
-        state.snapshot = null;
-      }
+      if (popup.visible) hidePopup();
       return;
     }
     if (e.shiftKey || e.key.startsWith("Arrow") || (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
@@ -100,18 +96,16 @@ function init(): void {
     "pointerdown",
     (e) => {
       if (popup.isInside(e.target as Node)) return;
-      if (state.popupVisible) {
-        hidePopup();
-        // Not clearing the snapshot? Clicking blank space means abandoning the quote, clearing is more expected
-        state.snapshot = null;
-      }
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
+      pendingFrame = null;
+      if (popup.visible) hidePopup();
     },
     { capture: true },
   );
 
-  // Hide on scroll / zoom / route change, wait for the next valid selection
-  window.addEventListener("scroll", () => hidePopup(), { passive: true, capture: true });
-  window.addEventListener("resize", () => hidePopup(), { passive: true });
+  // Keep the prompt attached above the composer when its position changes.
+  window.addEventListener("scroll", () => popup.reposition(), { passive: true, capture: true });
+  window.addEventListener("resize", () => popup.reposition(), { passive: true });
   window.addEventListener("pagehide", () => hidePopup());
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) hidePopup();

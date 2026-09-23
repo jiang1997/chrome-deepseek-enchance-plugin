@@ -52,6 +52,12 @@ describe("findComposer", () => {
     const vp = { width: 1280, height: 800 };
     expect(scoreCandidate(b, vp, b)).toBeGreaterThan(scoreCandidate(a, vp, null));
   });
+
+  it("does not treat a plain role=textbox input as contenteditable", () => {
+    document.body.innerHTML = `<input role="textbox" id="search" />`;
+    rectStub(document.getElementById("search")!, {});
+    expect(findComposer()).toBeNull();
+  });
 });
 
 describe("insertIntoTextarea", () => {
@@ -68,32 +74,33 @@ describe("insertIntoTextarea", () => {
     expect(ta.selectionStart).toBe(quote.length);
   });
 
-  it("keeps the existing draft and inserts at the cursor in the middle", () => {
+  it("keeps the existing draft and appends to the end even when the cursor is in the middle", () => {
     document.body.innerHTML = `<textarea id="c">abcd</textarea>`;
     const ta = document.getElementById("c") as HTMLTextAreaElement;
     ta.setSelectionRange(2, 2);
     const quote = "“X”\n\n";
     insertIntoTextarea(ta, quote);
-    expect(ta.value).toBe(`ab\n${quote}cd`);
+    expect(ta.value).toBe(`abcd\n${quote}`);
+    expect(ta.selectionStart).toBe(ta.value.length);
   });
 
-  it("replaces selected content (prepends a newline when before does not end in one)", () => {
+  it("does not replace a selected draft inside the composer", () => {
     document.body.innerHTML = `<textarea id="c">hello world</textarea>`;
     const ta = document.getElementById("c") as HTMLTextAreaElement;
     ta.setSelectionRange(6, 11);
     insertIntoTextarea(ta, "“Q”\n\n");
-    expect(ta.value).toBe("hello \n“Q”\n\n");
+    expect(ta.value).toBe("hello world\n“Q”\n\n");
   });
 });
 
 describe("insertIntoContentEditable", () => {
-  it("appends to an empty editor", () => {
-    document.body.innerHTML = `<div id="e" contenteditable="true"></div>`;
+  it("keeps existing content and appends to the end of the editor", () => {
+    document.body.innerHTML = `<div id="e" contenteditable="true">draft</div>`;
     const ed = document.getElementById("e") as HTMLElement;
     rectStub(ed, {});
     const quote = "“quote”\n\n";
     expect(insertIntoContentEditable(ed, quote)).toBe(true);
-    expect(ed.textContent).toBe(quote);
+    expect(ed.textContent).toBe(`draft\n${quote}`);
   });
 });
 

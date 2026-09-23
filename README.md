@@ -1,6 +1,6 @@
 # DeepSeek Enhancer
 
-DeepSeek Enhancer is a Chrome extension in early development. Select text in a DeepSeek response, click the floating quote button, and the selected text is inserted into the message composer so you can continue asking about it. The extension runs locally and does not upload chat content.
+DeepSeek Enhancer is a Chrome extension in early development. Select text in a DeepSeek response, then use the prompt above the message composer to append a quote to your draft. The extension runs locally and does not upload chat content.
 
 ## Install from a ZIP file
 
@@ -44,10 +44,10 @@ The private key is stored at `keys/deepseek-enhancer.pem` with owner-only permis
 
 ## Check the extension
 
-- Select text in a response, including a list or code block. The Quote button should appear near the selection and stay within the viewport.
-- Click Quote. The composer should receive the text as `“selected text”\n\n`, with the cursor after the quote.
-- Existing draft text should remain intact. You should be able to keep typing, edit the quote, and send the message yourself.
-- Clicking elsewhere, scrolling, resizing, or pressing Escape should hide the button.
+- Select text in a response, including a list or code block. A prompt matching the composer's width should appear directly above it, with a preview and a quote button.
+- Click the button. The composer should append the text as `“selected text”\n\n`, with the cursor after the quote.
+- Existing draft text should remain intact even when the cursor was in the middle. You should be able to keep typing, edit the quote, and send the message yourself.
+- Clicking elsewhere or pressing Escape should hide the prompt. Scrolling and resizing should keep it aligned with the composer.
 - Selecting text inside the composer should not show the button. Selections over 5,000 characters should be rejected.
 
 `fixtures/mock-chat.html` provides a mock conversation for local checks.
