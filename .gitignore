@@ -2,3 +2,7 @@ node_modules/
 dist/
 *.log
 .DS_Store
+/keys/
+/release/
+# Artifacts that older scripts used to output at the repository root.
+/deepseek-enhancer.crx
