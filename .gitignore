@@ -2,3 +2,7 @@ node_modules/
 dist/
 *.log
 .DS_Store
+/keys/
+/release/
+# 兼容旧版脚本曾输出到仓库根目录的产物。
+/deepseek-enhancer.crx

@@ -4,21 +4,29 @@
   "private": true,
   "description": "DeepSeek Web 增强插件：选中引用到输入框（Manifest V3）",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e-real": "node e2e/real-page-inspect.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "init:crx-key": "node scripts/init-crx-key.mjs",
+    "pack:zip": "npm run build && node scripts/pack-zip.mjs",
+    "pack:crx": "npm run build && node scripts/pack-crx.mjs"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0",
     "@playwright/test": "^1.63.0",
     "@types/chrome": "^0.0.280",
+    "crx3": "^2.0.0",
     "jsdom": "^24.0.0",
     "typescript": "^5.5.0",
     "vite": "^5.4.0",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.0",
+    "yazl": "^3.3.1"
   }
 }

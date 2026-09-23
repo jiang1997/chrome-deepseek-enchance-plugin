@@ -1,39 +1,71 @@
-# DeepSeek Enhancer（MVP v0.1.0）
+# DeepSeek Enhancer
 
-选中 DeepSeek 回答文本 → 点击「引用」 → 自动插入输入框继续提问。完全本地运行，不上传数据。
+DeepSeek Enhancer is a Chrome extension in early development. Select text in a DeepSeek response, click the floating quote button, and the selected text is inserted into the message composer so you can continue asking about it. The extension runs locally and does not upload chat content.
 
-## 安装（开发模式）
+## Install from a ZIP file
 
-1. `npm install`
-2. `npm run build`（产物在 `dist/`）
-3. Chrome 打开 `chrome://extensions` → 开启开发者模式 → “加载已解压的扩展程序” → 选择 `dist/`。
-4. 打开 `https://chat.deepseek.com/` 验证。
+Build a ZIP file without a signing key:
 
-## 验证清单
+```sh
+npm install
+npm run pack:zip
+```
 
-- 普通回答 / 列表 / 标题 / 代码块中拖选 → 附近出现「引用」按钮，不超出屏幕；
-- 点击后引用按 `“内容”\n\n` 进入正确的底部输入框；
-- 已有草稿不丢失，插入到当前光标处，光标停在引用后可继续输入；
-- 点击空白 / 滚动 / 缩放 / Esc 隐藏按钮；
-- 选中输入框内文字不弹按钮；超长（>5000字）提示拒绝；
-- 继续输入 / 删除 / 发送 / 刷新 / 新对话后功能仍可用，无控制台异常，不自动发送。
+The output is `release/deepseek-enhancer-<version>-unpacked.zip`. To install it:
 
-模拟页：`fixtures/mock-chat.html`（含历史回答、侧栏搜索框、底部输入框）。
+1. Extract the ZIP file to a permanent directory.
+2. Open `chrome://extensions` and enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select the extracted directory that directly contains `manifest.json`.
 
-## 命令
+Chrome cannot load the ZIP file directly. Keep the extracted directory in place after installation. To update the extension, replace its contents with the files from a newer ZIP and click **Reload** on the extension's card.
 
-- `npm test`：Vitest 单元测试（quote / selection / popup / composer）
-- `npm run typecheck`：TS 类型检查
-- `npm run build`：生产构建
-- `npm run dev`：开发构建（HMR）
+## Install from the source directory
 
-## 隐私
+Run `npm install` and `npm run build`, then use **Load unpacked** in `chrome://extensions` and select the generated `dist/` directory. Open `https://chat.deepseek.com/` to try the extension.
 
-- 仅在 `chat.deepseek.com` 运行 content script；无 `tabs/storage/cookies`/网络权限；
-- 不收集、不上传、不持久化聊天内容；引用文本只保存在内存快照中，点击后即清除。
+## Package for distribution
 
-## 已知限制
+To produce a signed CRX file, first create a signing key:
 
-- 真实 DeepSeek 输入框类型（textarea vs contenteditable / ProseMirror / Lexical）需在实页 DevTools 校准后补充优先选择器（见 `src/adapters/deepseek-composer.ts`）；
-- React 受控组件已用原生 setter + `input` 事件同步，仍需在实页验证重渲染不消失；
-- 深色主题 / 80%/125% 缩放需人工回归。
+```sh
+npm run init:crx-key
+npm run pack:crx
+```
+
+This creates two versioned files in `release/`:
+
+- `deepseek-enhancer-<version>.zip` for uploading to the Chrome Web Store.
+- `deepseek-enhancer-<version>.crx` for Linux, managed enterprise deployments, or automation.
+
+The CRX is a single distribution file containing the extension's manifest, JavaScript, and CSS. Chrome does not allow ordinary macOS and Windows users to install a locally signed CRX directly. Use **Load unpacked** for local development on those platforms, or distribute through the Chrome Web Store.
+
+The private key is stored at `keys/deepseek-enhancer.pem` with owner-only permissions. Keep it backed up and out of version control: losing it changes the extension ID and prevents updates to installations signed with the old key. `npm run pack:crx` fails if the key is missing. In CI, set `CRX_KEY_PATH` to a private key restored from a secret.
+
+## Check the extension
+
+- Select text in a response, including a list or code block. The Quote button should appear near the selection and stay within the viewport.
+- Click Quote. The composer should receive the text as `“selected text”\n\n`, with the cursor after the quote.
+- Existing draft text should remain intact. You should be able to keep typing, edit the quote, and send the message yourself.
+- Clicking elsewhere, scrolling, resizing, or pressing Escape should hide the button.
+- Selecting text inside the composer should not show the button. Selections over 5,000 characters should be rejected.
+
+`fixtures/mock-chat.html` provides a mock conversation for local checks.
+
+## Development commands
+
+- `npm test`: run unit tests with Vitest.
+- `npm run typecheck`: check TypeScript types.
+- `npm run build`: create the production extension in `dist/`.
+- `npm run dev`: start the Vite development build.
+- `npm run pack:zip`: build a ZIP for extraction and installation with **Load unpacked**.
+- `npm run init:crx-key`: create the CRX signing key once.
+- `npm run pack:crx`: build versioned ZIP and CRX files (requires Node.js 22 or newer).
+
+## Privacy
+
+The content script runs only on `chat.deepseek.com`. The extension requests no tabs, storage, cookies, or network permissions. Selected text is held in memory for the quote action; it is not collected, uploaded, or persisted.
+
+## Current limitations
+
+DeepSeek may change its message composer or page structure. The composer adapter still needs validation against the live site, especially for controlled or rich-text editors. Dark mode and browser zoom levels also need manual regression testing.
