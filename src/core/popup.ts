@@ -1,4 +1,4 @@
-/** 单例浮动「引用」按钮：定位、展示、隐藏、短暂提示。 */
+/** 锚定消息输入框的引用提示。 */
 import type { RectLike } from "./selection";
 
 export const POPUP_ATTR = "data-dse-popup";
@@ -6,37 +6,15 @@ export const POPUP_GAP = 8;
 export const POPUP_MARGIN = 8;
 export const POPUP_Z_INDEX = 2147483000;
 
-export type PopupPlacement = "above" | "below";
-
 export function computePopupPosition(
   rect: RectLike,
-  popupSize: { width: number; height: number },
-  viewport: { width: number; height: number },
-): { top: number; left: number; placement: PopupPlacement } {
-  const { width: pw, height: ph } = popupSize;
-  const { width: vw } = viewport;
-  const vh = viewport.height;
-
-  let centerX = rect.left + rect.width / 2 - pw / 2;
-  centerX = Math.max(POPUP_MARGIN, Math.min(centerX, vw - pw - POPUP_MARGIN));
-
-  const aboveTop = rect.top - ph - POPUP_GAP;
-  const belowTop = rect.bottom + POPUP_GAP;
-
-  let top: number;
-  let placement: PopupPlacement;
-  if (aboveTop >= POPUP_MARGIN) {
-    top = aboveTop;
-    placement = "above";
-  } else if (belowTop + ph <= vh - POPUP_MARGIN) {
-    top = belowTop;
-    placement = "below";
-  } else {
-    // 上下都放不下：钳制在视口内
-    top = Math.max(POPUP_MARGIN, Math.min(belowTop, vh - ph - POPUP_MARGIN));
-    placement = "below";
-  }
-  return { top: Math.round(top), left: Math.round(centerX), placement };
+  popupHeight: number,
+  viewport: { width: number },
+): { top: number; left: number; width: number } {
+  const width = Math.max(0, Math.min(rect.width, viewport.width - POPUP_MARGIN * 2));
+  const left = Math.max(POPUP_MARGIN, Math.min(rect.left, viewport.width - width - POPUP_MARGIN));
+  const top = Math.max(POPUP_MARGIN, rect.top - popupHeight - POPUP_GAP);
+  return { top: Math.round(top), left: Math.round(left), width: Math.round(width) };
 }
 
 export type PopupCallbacks = {
@@ -45,8 +23,11 @@ export type PopupCallbacks = {
 
 export class QuotePopup {
   private root: HTMLDivElement | null = null;
+  private preview: HTMLSpanElement | null = null;
   private button: HTMLButtonElement | null = null;
   private hintTimer: number | null = null;
+  private anchor: HTMLElement | null = null;
+  private anchorObserver: ResizeObserver | null = null;
   private originalLabel = "引用";
   visible = false;
 
@@ -56,12 +37,15 @@ export class QuotePopup {
     if (this.root && document.contains(this.root)) return this.root;
     const root = document.createElement("div");
     root.setAttribute(POPUP_ATTR, "true");
-    root.setAttribute("role", "toolbar");
-    root.setAttribute("aria-label", "DeepSeek 引用工具");
+    root.setAttribute("role", "group");
+    root.setAttribute("aria-label", "DeepSeek 引用提示");
     root.className = "dse-popup";
     root.style.position = "fixed";
     root.style.zIndex = String(POPUP_Z_INDEX);
     root.style.display = "none";
+
+    const preview = document.createElement("span");
+    preview.className = "dse-popup-preview";
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -71,33 +55,54 @@ export class QuotePopup {
     btn.addEventListener("pointerdown", (e) => e.preventDefault());
     btn.addEventListener("click", () => this.callbacks.onQuote());
 
-    root.appendChild(btn);
+    root.append(preview, btn);
     document.body.appendChild(root);
     this.root = root;
+    this.preview = preview;
     this.button = btn;
     return root;
   }
 
-  show(rect: RectLike): void {
+  show(anchor: HTMLElement, text: string): void {
     const root = this.ensureRoot();
-    root.style.display = "block";
+    if (this.hintTimer !== null) window.clearTimeout(this.hintTimer);
+    this.hintTimer = null;
+    this.restoreLabel();
+    this.anchorObserver?.disconnect();
+    this.anchor = anchor;
+    if (this.preview) this.preview.textContent = `已选中：${text}`;
+    root.style.display = "flex";
     this.visible = true;
-    // 先显示再测量，否则 offsetWidth 为 0
-    const pw = root.offsetWidth || 80;
-    const ph = root.offsetHeight || 32;
-    const { top, left } = computePopupPosition(
-      rect,
-      { width: pw, height: ph },
-      { width: window.innerWidth, height: window.innerHeight },
-    );
-    root.style.top = `${top}px`;
-    root.style.left = `${left}px`;
-    this.button?.focus({ preventScroll: true });
+    this.reposition();
+    if (typeof ResizeObserver !== "undefined") {
+      this.anchorObserver = new ResizeObserver(() => this.reposition());
+      this.anchorObserver.observe(anchor);
+    }
+  }
+
+  reposition(): void {
+    if (!this.root || !this.anchor || !this.visible) return;
+    if (!this.anchor.isConnected) {
+      this.hide();
+      return;
+    }
+    const rect = this.anchor.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0 || rect.bottom < 0 || rect.top > window.innerHeight) {
+      this.hide();
+      return;
+    }
+    const position = computePopupPosition(rect, this.root.offsetHeight || 44, { width: window.innerWidth });
+    this.root.style.top = `${position.top}px`;
+    this.root.style.left = `${position.left}px`;
+    this.root.style.width = `${position.width}px`;
   }
 
   hide(): void {
     if (this.root) this.root.style.display = "none";
     this.visible = false;
+    this.anchor = null;
+    this.anchorObserver?.disconnect();
+    this.anchorObserver = null;
     if (this.hintTimer !== null) {
       window.clearTimeout(this.hintTimer);
       this.hintTimer = null;
@@ -112,8 +117,12 @@ export class QuotePopup {
     }
     this.root?.remove();
     this.root = null;
+    this.preview = null;
     this.button = null;
     this.visible = false;
+    this.anchor = null;
+    this.anchorObserver?.disconnect();
+    this.anchorObserver = null;
   }
 
   isInside(node: Node | null): boolean {
@@ -123,16 +132,12 @@ export class QuotePopup {
   }
 
   /** 短暂提示（如“未找到消息输入框”），1.6s 后恢复。 */
-  showTransientMessage(msg: string, duration = 1600): void {
-    const root = this.ensureRoot();
-    if (!this.button) return;
-    root.style.display = "block";
-    this.visible = true;
-    this.button.textContent = msg;
+  showTransientMessage(anchor: HTMLElement, msg: string, duration = 1600): void {
+    this.show(anchor, msg);
+    if (!this.button || !this.preview) return;
+    this.preview.textContent = msg;
     this.button.disabled = true;
-    if (this.hintTimer !== null) window.clearTimeout(this.hintTimer);
     this.hintTimer = window.setTimeout(() => {
-      this.restoreLabel();
       this.hide();
     }, duration);
   }

@@ -1,36 +1,52 @@
-/* DeepSeek Enhancer 浮层样式：专属前缀 dse-，完整重置避免被页面污染。 */
+/* DeepSeek Enhancer 输入框上方的引用提示。 */
 .dse-popup {
   all: initial;
   position: fixed;
   z-index: 2147483000;
   display: none;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-size: 13px;
   line-height: 1.4;
+  color: #1f2937;
   color-scheme: light dark;
+}
+
+.dse-popup-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dse-popup-btn {
   all: unset;
   display: inline-block;
+  flex: none;
   box-sizing: border-box;
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(127, 127, 127, 0.35);
-  background: #fff;
-  color: #1f2937;
+  padding: 5px 12px;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
   font-size: 13px;
   line-height: 1.4;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
   white-space: nowrap;
   user-select: none;
   -webkit-user-select: none;
 }
 
 .dse-popup-btn:hover {
-  background: #f3f4f6;
+  background: #1d4ed8;
 }
 
 .dse-popup-btn:focus-visible {
@@ -44,12 +60,15 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .dse-popup-btn {
+  .dse-popup {
     background: #1f2937;
     color: #f9fafb;
     border-color: rgba(255, 255, 255, 0.2);
   }
+  .dse-popup-btn {
+    background: #3b82f6;
+  }
   .dse-popup-btn:hover {
-    background: #374151;
+    background: #2563eb;
   }
 }

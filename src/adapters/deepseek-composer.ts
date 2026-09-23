@@ -1,5 +1,5 @@
 /** DeepSeek 输入框适配器：发现候选 + textarea/contenteditable 插入。 */
-import { spliceQuote } from "../core/quote";
+import { appendQuote } from "../core/quote";
 
 export type ComposerElement = HTMLTextAreaElement | HTMLElement;
 
@@ -30,10 +30,9 @@ function isDisabledOrReadonly(el: Element): boolean {
     return el.disabled || el.readOnly;
   }
   const htmlEl = el as HTMLElement;
-  if (htmlEl.isContentEditable) return false;
   if (el.getAttribute("aria-disabled") === "true") return true;
   if (el.getAttribute("contenteditable") === "false") return true;
-  return false;
+  return !htmlEl.isContentEditable;
 }
 
 export type ScoredCandidate = { el: ComposerElement; score: number };
@@ -68,7 +67,7 @@ export function scoreCandidate(
 }
 
 function collectCandidates(root: ParentNode): Element[] {
-  return Array.from(root.querySelectorAll('textarea, [contenteditable="true"], [role="textbox"]'));
+  return Array.from(root.querySelectorAll('textarea, [contenteditable="true"]'));
 }
 
 /** 寻找 DeepSeek 消息输入框；低可信度时返回 null（宁可不写，不误写）。 */
@@ -107,24 +106,23 @@ function dispatchInput(el: Element, quote: string): void {
 
 export function insertIntoTextarea(textarea: HTMLTextAreaElement, quote: string): boolean {
   try {
-    const start = textarea.selectionStart ?? textarea.value.length;
-    const end = textarea.selectionEnd ?? textarea.value.length;
-    const { value, cursor } = spliceQuote(textarea.value, start, end, quote);
+    const { value, insertion } = appendQuote(textarea.value, quote);
     setNativeTextareaValue(textarea, value);
-    dispatchInput(textarea, quote);
+    dispatchInput(textarea, insertion);
     textarea.focus({ preventScroll: true });
     try {
-      textarea.setSelectionRange(cursor, cursor);
+      textarea.setSelectionRange(value.length, value.length);
     } catch {
       /* 忽略光标恢复失败 */
     }
     return true;
   } catch {
-    // 降级：setRangeText
+    // 降级：仍只在末尾追加，不覆盖草稿中的选区。
     try {
       textarea.focus({ preventScroll: true });
-      textarea.setRangeText(quote, textarea.selectionStart ?? 0, textarea.selectionEnd ?? 0, "end");
-      dispatchInput(textarea, quote);
+      const { insertion } = appendQuote(textarea.value, quote);
+      textarea.setRangeText(insertion, textarea.value.length, textarea.value.length, "end");
+      dispatchInput(textarea, insertion);
       return true;
     } catch {
       return false;
@@ -137,25 +135,17 @@ export function insertIntoContentEditable(el: HTMLElement, quote: string): boole
     el.focus({ preventScroll: true });
     const sel = window.getSelection();
     if (!sel) return false;
-    let range: Range;
-    if (sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
-      range = sel.getRangeAt(0);
-    } else {
-      range = document.createRange();
-      range.selectNodeContents(el);
-      range.collapse(false);
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-    range.deleteContents();
-    const node = document.createTextNode(quote);
+    const { insertion } = appendQuote(el.textContent ?? "", quote);
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const node = document.createTextNode(insertion);
     range.insertNode(node);
     range.setStartAfter(node);
     range.collapse(true);
     sel.removeAllRanges();
     sel.addRange(range);
-    el.dispatchEvent(new InputEvent("beforeinput", { bubbles: true, cancelable: true, inputType: "insertText", data: quote }));
-    el.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: quote }));
+    dispatchInput(el, insertion);
     return true;
   } catch {
     return false;

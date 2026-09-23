@@ -9,40 +9,31 @@ beforeEach(() => {
 });
 
 describe("computePopupPosition", () => {
-  it("默认放选区上方居中", () => {
+  it("紧靠输入框上方并与输入框等宽", () => {
     const r = computePopupPosition(
-      { top: 300, left: 500, bottom: 320, right: 700, width: 200, height: 20, x: 500, y: 300 },
-      { width: 80, height: 32 },
+      { top: 600, left: 300, bottom: 700, right: 900, width: 600, height: 100, x: 300, y: 600 },
+      44,
       VP,
     );
-    expect(r.placement).toBe("above");
-    expect(r.top).toBe(300 - 32 - 8);
-    expect(r.left).toBe(Math.round(500 + 100 - 40));
+    expect(r).toEqual({ top: 548, left: 300, width: 600 });
   });
 
-  it("上方空间不足时翻转到下方", () => {
+  it("输入框靠近顶部时不把提示放到输入框下方", () => {
     const r = computePopupPosition(
-      { top: 5, left: 500, bottom: 25, right: 700, width: 200, height: 20, x: 500, y: 5 },
-      { width: 80, height: 32 },
+      { top: 30, left: 500, bottom: 90, right: 900, width: 400, height: 60, x: 500, y: 30 },
+      44,
       VP,
     );
-    expect(r.placement).toBe("below");
-    expect(r.top).toBe(25 + 8);
+    expect(r.top).toBe(8);
   });
 
-  it("左右边界钳制", () => {
+  it("输入框超出视口时限制提示宽度和横向位置", () => {
     const left = computePopupPosition(
-      { top: 300, left: 0, bottom: 320, right: 50, width: 50, height: 20, x: 0, y: 300 },
-      { width: 80, height: 32 },
+      { top: 600, left: -20, bottom: 700, right: 1300, width: 1320, height: 100, x: -20, y: 600 },
+      44,
       VP,
     );
-    expect(left.left).toBeGreaterThanOrEqual(8);
-
-    const right = computePopupPosition(
-      { top: 300, left: 1250, bottom: 320, right: 1280, width: 30, height: 20, x: 1250, y: 300 },
-      { width: 80, height: 32 },
-      VP,
-    );
-    expect(right.left + 80).toBeLessThanOrEqual(VP.width - 8);
+    expect(left.left).toBe(8);
+    expect(left.width).toBe(1264);
   });
 });

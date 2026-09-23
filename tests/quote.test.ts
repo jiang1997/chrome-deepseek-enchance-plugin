@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatQuote, spliceQuote } from "../src/core/quote";
+import { appendQuote, formatQuote } from "../src/core/quote";
 
 describe("formatQuote", () => {
   it("包裹中文引号并追加空行", () => {
@@ -19,32 +19,25 @@ describe("formatQuote", () => {
   });
 });
 
-describe("spliceQuote", () => {
+describe("appendQuote", () => {
   const q = "“引用”\n\n";
 
   it("空输入框直接插入", () => {
-    expect(spliceQuote("", 0, 0, q)).toEqual({ value: q, cursor: q.length });
+    expect(appendQuote("", q)).toEqual({ value: q, insertion: q });
   });
 
-  it("光标前有文字且无换行时补换行", () => {
-    const r = spliceQuote("已有草稿", 4, 4, q);
+  it("草稿末尾无换行时补换行", () => {
+    const r = appendQuote("已有草稿", q);
     expect(r.value).toBe(`已有草稿\n${q}`);
-    expect(r.cursor).toBe(r.value.length);
+    expect(r.insertion).toBe(`\n${q}`);
   });
 
-  it("光标前已有换行时不补", () => {
-    const r = spliceQuote("草稿\n", 3, 3, q);
+  it("草稿末尾已有换行时不补", () => {
+    const r = appendQuote("草稿\n", q);
     expect(r.value).toBe(`草稿\n${q}`);
   });
 
-  it("光标在中间不破坏其后文本", () => {
-    const r = spliceQuote("ab|cd".replace("|", ""), 2, 2, q);
-    expect(r.value).toBe(`ab\n${q}cd`);
-    expect(r.cursor).toBe(`ab\n${q}`.length);
-  });
-
-  it("替换选中内容（before 非换行结尾则补换行）", () => {
-    const r = spliceQuote("hello world", 6, 11, q);
-    expect(r.value).toBe(`hello \n${q}`);
+  it("追加操作不依赖草稿当前光标", () => {
+    expect(appendQuote("abcd", q).value).toBe(`abcd\n${q}`);
   });
 });
