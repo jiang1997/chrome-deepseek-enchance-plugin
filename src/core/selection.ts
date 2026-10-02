@@ -1,4 +1,5 @@
 /** Selection validation and snapshot (pure logic + thin DOM adapter). */
+import { resolveMessageContext, type MessageContext } from "./message-context";
 
 export const MAX_SELECTION_LENGTH = 5000;
 
@@ -16,6 +17,8 @@ export type RectLike = {
 export type SelectionSnapshot = {
   text: string;
   rect: RectLike;
+  /** Provenance of the message the selection lives in (role + ordinal). */
+  context: MessageContext;
 };
 
 export type SelectionRejectReason =
@@ -121,7 +124,7 @@ export function validateSelection(sel: Selection | null): ValidateResult {
   }
   if (!isValidRect(rect)) return { ok: false, reason: "no-rect" };
 
-  return { ok: true, snapshot: { text, rect } };
+  return { ok: true, snapshot: { text, rect, context: resolveMessageContext(anchorNode) } };
 }
 
 /** Read and validate the current window selection; return null on failure. */

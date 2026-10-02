@@ -2,6 +2,7 @@
 import { validateSelection, MAX_SELECTION_LENGTH, type SelectionSnapshot } from "./core/selection";
 import { QuotePopup } from "./core/popup";
 import { formatQuote } from "./core/quote";
+import { describeMessageContext } from "./core/message-context";
 import { findComposer, findComposerWithRetry, insertIntoComposer, type ComposerElement } from "./adapters/deepseek-composer";
 
 declare global {
@@ -48,7 +49,7 @@ function init(): void {
       }
       state.snapshot = result.snapshot;
       state.composer = composer;
-      popup.show(composer, result.snapshot.text);
+      popup.show(composer, result.snapshot.text, describeMessageContext(result.snapshot.context));
     });
   }
 
@@ -58,7 +59,7 @@ function init(): void {
       hidePopup();
       return;
     }
-    const quote = formatQuote(snapshot.text);
+    const quote = formatQuote(snapshot.text, snapshot.context);
     const composer = state.composer?.isConnected ? state.composer : await findComposerWithRetry(RETRY_TIMEOUT_MS);
     if (!composer) {
       hidePopup();

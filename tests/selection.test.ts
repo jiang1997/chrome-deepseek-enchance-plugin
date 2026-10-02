@@ -76,6 +76,21 @@ describe("validateSelection", () => {
     if (res.ok) expect(res.snapshot.text).toContain("closure");
   });
 
+  it("attaches message provenance when the selection is inside a message item", () => {
+    document.body.innerHTML = `
+      <div class="ds-virtual-list-items">
+        <div data-virtual-list-item-key="1"><div class="ds-collapsible-text"><span>hi</span></div></div>
+        <div data-virtual-list-item-key="2"><div class="ds-assistant-message-main-content"><p id="p">A closure keeps the lexical environment.</p></div></div>
+      </div>`;
+    const sel = selectTextIn(document.getElementById("p")!);
+    const range = sel!.getRangeAt(0);
+    range.getBoundingClientRect = () =>
+      ({ top: 100, left: 100, bottom: 120, right: 300, width: 200, height: 20, x: 100, y: 100 }) as DOMRect;
+    const res = validateSelection(sel);
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.snapshot.context).toEqual({ role: "assistant", index: 1, position: 2 });
+  });
+
   it("rejects a selection inside an editable", () => {
     document.body.innerHTML = `<textarea id="t">draft content</textarea>`;
     const t = document.getElementById("t") as HTMLTextAreaElement;

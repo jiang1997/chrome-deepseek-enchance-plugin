@@ -63,14 +63,14 @@ export class QuotePopup {
     return root;
   }
 
-  show(anchor: HTMLElement, text: string): void {
+  show(anchor: HTMLElement, text: string, badge = ""): void {
     const root = this.ensureRoot();
     if (this.hintTimer !== null) window.clearTimeout(this.hintTimer);
     this.hintTimer = null;
     this.restoreLabel();
     this.anchorObserver?.disconnect();
     this.anchor = anchor;
-    if (this.preview) this.preview.textContent = `Selected: ${text}`;
+    if (this.preview) this.preview.textContent = badge ? `Selected ${badge}: ${text}` : `Selected: ${text}`;
     root.style.display = "flex";
     this.visible = true;
     this.reposition();
