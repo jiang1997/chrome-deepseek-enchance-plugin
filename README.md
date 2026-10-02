@@ -9,6 +9,15 @@ Select text in a DeepSeek response and quote it into the composer to keep asking
 3. Click Quote. The text is appended to your draft as `“selected text”`, with the cursor after the quote.
 4. Keep typing, edit the quote, and send the message yourself. Existing draft text is preserved.
 
+## Screenshots
+
+| 1. Select & Quote | 2. Ask a Follow-up |
+| :---: | :---: |
+| [![Selected response text with the quote preview and Quote button above the composer](store-assets/screenshots/01-select-and-quote.png)](store-assets/screenshots/01-select-and-quote.png) | [![Quoted dinner suggestion and a follow-up question in the message draft](store-assets/screenshots/02-follow-up-draft.png)](store-assets/screenshots/02-follow-up-draft.png) |
+| Select text in a response, then click **Quote**. | Add your follow-up question to the quoted draft. |
+
+Click either screenshot to view the full-size image.
+
 ## Install from a ZIP file
 
 ```sh
