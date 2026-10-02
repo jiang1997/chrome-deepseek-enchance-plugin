@@ -125,6 +125,12 @@ export class QuotePopup {
     this.anchorObserver = null;
   }
 
+  /** Disable the action button while a quote is being written (also blocks duplicate clicks). */
+  setBusy(busy: boolean): void {
+    if (!this.button) return;
+    this.button.disabled = busy;
+  }
+
   isInside(node: Node | null): boolean {
     if (!node || !this.root) return false;
     const el = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : (node as ChildNode).parentElement;

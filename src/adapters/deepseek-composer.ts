@@ -25,14 +25,30 @@ function isExcludedChrome(el: Element): boolean {
   return !!el.closest("aside, nav, header, [role='search'], [role='dialog'], [role='menu']");
 }
 
+function isElementEditable(el: Element): boolean {
+  const contentEditable = el.getAttribute("contenteditable");
+  if (contentEditable === "false") return false;
+  const htmlEl = el as HTMLElement;
+  if (htmlEl.isContentEditable) return true;
+  // jsdom and older engines do not implement isContentEditable; fall back to the attribute.
+  return contentEditable === "" || contentEditable === "true" || contentEditable === "plaintext-only";
+}
+
 function isDisabledOrReadonly(el: Element): boolean {
   if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
     return el.disabled || el.readOnly;
   }
-  const htmlEl = el as HTMLElement;
   if (el.getAttribute("aria-disabled") === "true") return true;
-  if (el.getAttribute("contenteditable") === "false") return true;
-  return !htmlEl.isContentEditable;
+  return !isElementEditable(el);
+}
+
+/**
+ * Re-check a composer right before writing: it must still be attached to the document and writable.
+ * Guards against the element being removed, disabled, or made read-only while a lookup is in flight.
+ */
+export function isComposerEditable(el: ComposerElement | null | undefined): boolean {
+  if (!el || !el.isConnected) return false;
+  return !isDisabledOrReadonly(el);
 }
 
 export type ScoredCandidate = { el: ComposerElement; score: number };
@@ -158,27 +174,58 @@ export function insertIntoComposer(el: ComposerElement, quote: string): boolean 
   return insertIntoContentEditable(el as HTMLElement, quote);
 }
 
-/** Retry finding shortly (composer not rendered yet), retries every frame for 300ms by default. */
-export function findComposerWithRetry(timeoutMs = 300): Promise<ComposerElement | null> {
+/**
+ * Retry finding shortly (composer not rendered yet), retries every frame for 300ms by default.
+ * Pass an AbortSignal to stop retrying as soon as the prompt is closed; it then resolves to null.
+ */
+export function findComposerWithRetry(
+  timeoutMs = 300,
+  signal?: AbortSignal,
+): Promise<ComposerElement | null> {
   return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve(null);
+      return;
+    }
+
+    let frame: number | null = null;
+    let settled = false;
+
+    const cleanup = () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+      signal?.removeEventListener("abort", onAbort);
+    };
+    const finish = (value: ComposerElement | null) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+    const onAbort = () => finish(null);
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+
     const found = findComposer();
     if (found) {
-      resolve(found);
+      finish(found);
       return;
     }
     const deadline = performance.now() + timeoutMs;
     const tick = () => {
+      frame = null;
+      if (settled) return;
       const el = findComposer();
       if (el) {
-        resolve(el);
+        finish(el);
         return;
       }
       if (performance.now() >= deadline) {
-        resolve(null);
+        finish(null);
         return;
       }
-      requestAnimationFrame(tick);
+      frame = requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
+    frame = requestAnimationFrame(tick);
   });
 }

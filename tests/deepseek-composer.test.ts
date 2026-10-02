@@ -1,11 +1,17 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
 import {
   findComposer,
+  findComposerWithRetry,
   insertIntoComposer,
   insertIntoContentEditable,
   insertIntoTextarea,
+  isComposerEditable,
   scoreCandidate,
 } from "../src/adapters/deepseek-composer";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function rectStub(el: Element, rect: Partial<DOMRect>) {
   el.getBoundingClientRect = () =>
@@ -110,5 +116,78 @@ describe("insertIntoComposer", () => {
     const ta = document.getElementById("c") as HTMLTextAreaElement;
     expect(insertIntoComposer(ta, "“A”\n\n")).toBe(true);
     expect(ta.value).toBe("“A”\n\n");
+  });
+});
+
+describe("isComposerEditable", () => {
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <textarea id="ta"></textarea>
+      <div id="on" contenteditable="true"></div>
+      <div id="off" contenteditable="false"></div>
+      <div id="aria" contenteditable="true" aria-disabled="true"></div>
+    `;
+  });
+
+  it("accepts a connected, enabled textarea", () => {
+    expect(isComposerEditable(document.getElementById("ta"))).toBe(true);
+  });
+
+  it("rejects disabled and read-only textareas", () => {
+    const disabled = document.getElementById("ta") as HTMLTextAreaElement;
+    disabled.disabled = true;
+    const readOnly = document.createElement("textarea");
+    readOnly.readOnly = true;
+    document.body.appendChild(readOnly);
+    expect(isComposerEditable(disabled)).toBe(false);
+    expect(isComposerEditable(readOnly)).toBe(false);
+  });
+
+  it("rejects detached elements and null", () => {
+    const ta = document.getElementById("ta") as HTMLTextAreaElement;
+    ta.remove();
+    expect(isComposerEditable(ta)).toBe(false);
+    expect(isComposerEditable(null)).toBe(false);
+  });
+
+  it("accepts contenteditable and rejects contenteditable=false / aria-disabled", () => {
+    expect(isComposerEditable(document.getElementById("on"))).toBe(true);
+    expect(isComposerEditable(document.getElementById("off"))).toBe(false);
+    expect(isComposerEditable(document.getElementById("aria"))).toBe(false);
+  });
+});
+
+describe("findComposerWithRetry", () => {
+  it("resolves null immediately when the signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const raf = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", raf);
+
+    await expect(findComposerWithRetry(300, controller.signal)).resolves.toBeNull();
+    expect(raf).not.toHaveBeenCalled();
+  });
+
+  it("stops waiting as soon as the signal aborts", async () => {
+    document.body.innerHTML = `<div>plain text</div>`;
+    const controller = new AbortController();
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+
+    const pending = findComposerWithRetry(1000, controller.signal);
+    controller.abort();
+
+    await expect(pending).resolves.toBeNull();
+  });
+
+  it("finds the composer without waiting when it is already present", async () => {
+    document.body.innerHTML = `<textarea id="c" aria-label="Send" placeholder="Type"></textarea>`;
+    const ta = document.getElementById("c") as HTMLTextAreaElement;
+    rectStub(ta, {});
+    const raf = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", raf);
+
+    await expect(findComposerWithRetry(300)).resolves.toBe(ta);
+    expect(raf).not.toHaveBeenCalled();
   });
 });
