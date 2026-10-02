@@ -1,0 +1,61 @@
+Chrome Web Store Submission Guide
+
+These missing-field notices do not require changes to the current extension package. Complete the following dashboard fields and save your draft.
+
+1. Privacy Practices → Single Purpose Description
+
+Paste the following text:
+
+Allow users to select text in a DeepSeek response and append it as a quote to their message draft, making it easier to ask follow-up questions about specific content.
+
+
+2. Privacy Practices → Remote Code
+
+Select "No, I am not using remote code." All JavaScript and CSS are included in the extension package. The extension does not download or execute remote code.
+
+If an explanation field is still shown, enter:
+
+All JavaScript and CSS are included in the extension package. The extension does not download or execute remotely hosted code.
+
+Hosting the privacy policy on GitHub Pages does not mean that the extension uses remote code.
+
+
+3. Privacy Practices → Host Permission Justification
+
+Paste the following text:
+
+Access to https://chat.deepseek.com/* is required to read the user's selected text, display a quote preview, and append the selected text to the existing message draft when the user clicks Quote. Processing happens locally in the browser. The extension does not access other websites or transmit chat content to external servers.
+
+
+4. Privacy Practices → Data Use Certification
+
+At the bottom of the same tab, check the policy certifications that accurately describe the extension's behavior:
+- User data is not sold.
+- User data is not used for purposes unrelated to the extension's single purpose.
+- User data is not used to determine creditworthiness or for lending purposes.
+
+Your data disclosures must match the privacy policy. The extension processes selected text and the existing message draft locally, so do not state that it does not handle any user data. Declare data categories accurately according to the definitions shown in the dashboard.
+
+Privacy policy URL:
+
+https://jiang1997.github.io/chrome-deepseek-enchance-plugin/privacy.html
+
+After completing these fields, click "Save Draft."
+
+
+5. Settings → Contact Email and Verification
+
+Enter a publisher contact email address that you can access. Save it and click "Verify Email." Open the verification email and follow its link to complete verification.
+
+The email address used to sign in to your account does not automatically complete publisher contact email verification.
+
+After verification, return to the item's page and refresh it. Confirm that your draft has been saved, then submit the item for review.
+
+
+Official References
+
+Privacy fields:
+https://developer.chrome.com/docs/webstore/cws-dashboard-privacy
+
+Email verification:
+https://developer.chrome.com/docs/webstore/set-up-account

@@ -4,5 +4,7 @@ dist/
 .DS_Store
 /keys/
 /release/
+# Local diagnostics (e.g. scripts/inspect-deepseek.mjs screenshots).
+/artifacts/
 # Artifacts that older scripts used to output at the repository root.
 /deepseek-enhancer.crx

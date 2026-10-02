@@ -1,0 +1,23 @@
+Quote a DeepSeek response and keep the conversation going.
+
+DeepSeek Enhancer lets you select text in a DeepSeek response and add it as a quote to your message draft with one click. Ask a follow-up about a specific suggestion, sentence, or explanation without copying and pasting it manually.
+
+HOW TO USE
+1. Open chat.deepseek.com and select text in a response.
+2. Click Quote in the prompt above the message box.
+3. Add your follow-up question, edit the draft if needed, and send it when you are ready.
+
+FEATURES
+- Preview your selected text before quoting it.
+- Append quotes without replacing your existing draft.
+- Keep typing immediately after the inserted quote.
+- Dismiss the quote prompt by clicking elsewhere or pressing Escape.
+- Works with light and dark mode.
+- Quote up to 5,000 characters at a time.
+
+PRIVACY
+The extension runs locally and only on chat.deepseek.com. It processes selected text and your existing draft to provide the quote feature. It does not upload chat content, persist selections in storage, or include analytics or advertising. Messages you choose to send are processed by DeepSeek under its own privacy policy.
+
+Privacy policy: https://jiang1997.github.io/chrome-deepseek-enchance-plugin/privacy.html
+
+DeepSeek Enhancer is an independent third-party extension, not affiliated with or endorsed by DeepSeek.

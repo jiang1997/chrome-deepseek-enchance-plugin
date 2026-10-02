@@ -12,7 +12,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e-real": "node e2e/real-page-inspect.mjs",
+    "inspect:deepseek": "node scripts/inspect-deepseek.mjs",
     "typecheck": "tsc --noEmit",
     "init:crx-key": "node scripts/init-crx-key.mjs",
     "pack:zip": "npm run build && node scripts/pack-zip.mjs",
