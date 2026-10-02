@@ -2,6 +2,7 @@
   "name": "deepseek-enhancer",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "DeepSeek web enhancement extension: quote selections into the composer (Manifest V3)",
   "type": "module",
   "engines": {
@@ -9,7 +10,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/copy-license.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "inspect:deepseek": "node scripts/inspect-deepseek.mjs",

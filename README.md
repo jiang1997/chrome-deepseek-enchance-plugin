@@ -1,4 +1,13 @@
-# DeepSeek Enhancer
+<p align="center">
+  <img src="icons/source.svg" width="96" height="96" alt="DeepSeek Enhancer icon: white quotation marks on a blue rounded square">
+</p>
+
+<h1 align="center">DeepSeek Enhancer</h1>
+
+<p align="center">
+  <a href="https://github.com/jiang1997/chrome-deepseek-enchance-plugin/releases"><img src="https://img.shields.io/github/package-json/v/jiang1997/chrome-deepseek-enchance-plugin?label=version&color=4D6BFE" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/jiang1997/chrome-deepseek-enchance-plugin?color=4D6BFE" alt="License: MIT"></a>
+</p>
 
 Select text in a DeepSeek response and quote it into the composer to keep asking. The extension runs locally and does not upload chat content.
 
