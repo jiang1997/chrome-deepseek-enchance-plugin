@@ -69,7 +69,7 @@ The private key at `keys/deepseek-enhancer.pem` is gitignored. Back it up; losin
 
 ## Privacy
 
-The content script runs only on `chat.deepseek.com`. The extension requests no tabs, storage, cookies, or network permissions. Selected text is held in memory for the quote action; it is not collected, uploaded, or persisted.
+The content script runs only on `chat.deepseek.com`. The extension requests no tabs, storage, cookies, or network permissions. Selected text and the existing draft are processed locally for the quote feature. The extension does not transmit this content to the developer or persist it in storage.
 
 Privacy policy: https://jiang1997.github.io/chrome-deepseek-enchance-plugin/privacy.html
 

@@ -6,7 +6,7 @@ Upload source for the Chrome Web Store item. Keep paths stable; the dashboard re
 
 - Store icon: `public/icons/icon128.png` (use directly; do not keep a second copy here)
 - Small promo image: `store-assets/promo-440x280.png` (editable source: `store-assets/promo-440x280.svg`)
-- Screenshots: `store-assets/screenshots/01-select-and-quote-original.png`, `store-assets/screenshots/02-follow-up-draft-original.png` (originals, 2560x1528; recapture or crop to 1280x800 before upload)
+- Screenshots: `store-assets/screenshots/01-select-and-quote.png`, `store-assets/screenshots/02-follow-up-draft.png` (current screenshots used for the store listing, both 1280x800)
 - Listing copy: `store-assets/description-en.txt` (single source; do not duplicate it elsewhere)
 - Review field guide: `store-assets/privacy-dashboard-guide.txt` (single purpose, host permission, remote code, contact email verification)
 - Privacy policy URL: https://jiang1997.github.io/chrome-deepseek-enchance-plugin/privacy.html
