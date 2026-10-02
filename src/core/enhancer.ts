@@ -31,7 +31,7 @@ export function init(): void {
   window.__DSE_INITIALIZED__ = true;
 
   const state: PluginState = { snapshot: null, composer: null };
-  const popup = new QuotePopup({ onQuote: handleQuote });
+  const popup = new QuotePopup({ onQuote: handleQuote, onHide: resetQuoteState });
   let pendingFrame: number | null = null;
   let quoteController: AbortController | null = null;
   let quoting = false;
@@ -43,18 +43,33 @@ export function init(): void {
     }
   }
 
-  function hidePopup(): void {
-    cancelPendingFrame();
-    // Closing the prompt cancels any in-flight composer lookup or pending write.
+  function cancelPendingQuote(): void {
     quoteController?.abort();
     quoteController = null;
     quoting = false;
-    popup.hide();
+  }
+
+  /**
+   * Clear every bit of selection/quote state. Runs on every popup close path, including the
+   * internal hides triggered by popup.reposition(), so a stale quote can never be written.
+   */
+  function resetQuoteState(): void {
+    cancelPendingFrame();
+    cancelPendingQuote();
     state.snapshot = null;
     state.composer = null;
   }
 
+  function hidePopup(): void {
+    resetQuoteState();
+    popup.hide();
+  }
+
   function maybeShowPopup(): void {
+    // A selection event immediately supersedes any quote still waiting on the old selection.
+    // This must happen before the delayed read below: the pending lookup may have already
+    // queued a frame ahead of the preview and would otherwise win the race.
+    cancelPendingQuote();
     // Read on the next frame after the selection event to avoid stale values
     cancelPendingFrame();
     pendingFrame = requestAnimationFrame(() => {
@@ -96,6 +111,8 @@ export function init(): void {
       }
       // The prompt was closed (Escape, click-away, page hide) while looking the composer up.
       if (controller.signal.aborted) return;
+      // A newer selection replaced this one in the meantime; drop the stale quote.
+      if (state.snapshot !== snapshot) return;
       // Re-confirm right before writing: it may have been removed or disabled in the meantime.
       if (!composer || !isComposerEditable(composer)) {
         hidePopup();

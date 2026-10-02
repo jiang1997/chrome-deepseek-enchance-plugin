@@ -61,9 +61,9 @@ function getButton(): HTMLButtonElement {
 }
 
 /** Show the prompt while findComposer resolves to the given element. */
-function showPopupWith(composer: HTMLElement): void {
+function showPopupWith(composer: HTMLElement, text = "Selected sentence."): void {
   mocks.findComposer.mockReturnValue(composer);
-  mountSelection();
+  mountSelection(text);
   showPopup();
   expect(getPopup().style.display).toBe("flex");
 }
@@ -127,6 +127,78 @@ describe("content script async state management", () => {
     await flushAsync();
 
     expect(mocks.insertIntoComposer).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a pending quote when the popup hides itself after the composer is removed", async () => {
+    const cached = mountComposer();
+    const deferred = createDeferred<HTMLElement | null>();
+    mocks.findComposerWithRetry.mockReturnValue(deferred.promise);
+    showPopupWith(cached);
+
+    cached.remove(); // force the retry path and disconnect the popup anchor
+    getButton().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    // Scrolling repositions the prompt; the disconnected anchor makes it hide itself.
+    window.dispatchEvent(new Event("scroll"));
+    expect(getPopup().style.display).toBe("none");
+
+    deferred.resolve(mountComposer());
+    await flushAsync();
+
+    expect(mocks.insertIntoComposer).not.toHaveBeenCalled();
+  });
+
+  it("cancels the old quote when a new selection replaces the preview", async () => {
+    const cached = mountComposer();
+    const deferred = createDeferred<HTMLElement | null>();
+    mocks.findComposerWithRetry.mockReturnValue(deferred.promise);
+    showPopupWith(cached, "First selection.");
+
+    cached.remove(); // force the retry path for the first quote
+    getButton().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    // While the first lookup is pending, the user selects different text.
+    const next = mountComposer();
+    mocks.findComposer.mockReturnValue(next);
+    mountSelection("Second selection.");
+    showPopup();
+
+    expect(getPopup().textContent).toContain("Second selection.");
+
+    deferred.resolve(mountComposer());
+    await flushAsync();
+
+    expect(mocks.insertIntoComposer).not.toHaveBeenCalled();
+    expect(getPopup().style.display).toBe("flex");
+    expect(getPopup().textContent).toContain("Second selection.");
+  });
+
+  it("cancels the old quote when the selection changes before the new preview frame runs", async () => {
+    const cached = mountComposer();
+    const deferred = createDeferred<HTMLElement | null>();
+    mocks.findComposerWithRetry.mockReturnValue(deferred.promise);
+    showPopupWith(cached, "First selection.");
+
+    cached.remove(); // force the retry path for the first quote
+    getButton().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    // The selection changes and schedules the new preview frame, but it has NOT run yet.
+    const next = mountComposer();
+    mocks.findComposer.mockReturnValue(next);
+    mountSelection("Second selection.");
+    document.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    expect(raf.pending()).toBe(1);
+
+    // The old lookup settles ahead of the preview frame: the racy window.
+    deferred.resolve(mountComposer());
+    await flushAsync();
+
+    expect(mocks.insertIntoComposer).not.toHaveBeenCalled();
+
+    // The pending preview frame still runs and shows the new selection.
+    raf.flush();
+    expect(getPopup().style.display).toBe("flex");
+    expect(getPopup().textContent).toContain("Second selection.");
   });
 
   it("does not write when the composer is disabled before the write", async () => {
