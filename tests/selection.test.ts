@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
+import { selectText } from "./helpers/dom";
 import {
   cleanSelectionText,
   isInEditable,
@@ -79,8 +80,10 @@ describe("validateSelection", () => {
   it("attaches message provenance when the selection is inside a message item", () => {
     document.body.innerHTML = `
       <div class="ds-virtual-list-items">
+        <div class="ds-virtual-list-visible-items" style="--dsl-virtual-list-transform-y: 0px">
         <div data-virtual-list-item-key="1"><div class="ds-collapsible-text"><span>hi</span></div></div>
         <div data-virtual-list-item-key="2"><div class="ds-assistant-message-main-content"><p id="p">A closure keeps the lexical environment.</p></div></div>
+        </div>
       </div>`;
     const sel = selectTextIn(document.getElementById("p")!);
     const range = sel!.getRangeAt(0);
@@ -89,6 +92,36 @@ describe("validateSelection", () => {
     const res = validateSelection(sel);
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.snapshot.context).toEqual({ role: "assistant", index: 1, position: 2 });
+  });
+
+  it.each([false, true])("omits provenance for cross-message selections (backward=%s)", (backward) => {
+    document.body.innerHTML = `<div class="ds-virtual-list-items">
+      <div class="ds-virtual-list-visible-items" style="--dsl-virtual-list-transform-y: 0px">
+        <div data-virtual-list-item-key="1"><div class="ds-collapsible-text"><span id="user">My question</span></div></div>
+        <div data-virtual-list-item-key="2"><div class="ds-assistant-message-main-content"><p id="assistant">AI answer</p></div></div>
+      </div></div>`;
+    const start = document.getElementById("user")!.firstChild!;
+    const end = document.getElementById("assistant")!.firstChild!;
+    const sel = window.getSelection()!;
+    sel.setBaseAndExtent(backward ? end : start, backward ? 9 : 0, backward ? start : end, backward ? 0 : 9);
+    sel.getRangeAt(0).getBoundingClientRect = () =>
+      ({ top: 100, left: 100, bottom: 140, right: 300, width: 200, height: 40, x: 100, y: 100 }) as DOMRect;
+    const result = validateSelection(sel);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.snapshot.text).toContain("My question");
+      expect(result.snapshot.text).toContain("AI answer");
+      expect(result.snapshot.context).toEqual({ role: "unknown", index: null, position: null });
+    }
+  });
+
+  it("keeps provenance for a selection spanning blocks within one message", () => {
+    document.body.innerHTML = `<div data-virtual-list-item-key="10">
+      <div class="ds-assistant-message-main-content" id="body"><p>Explanation</p><pre>Example</pre></div>
+    </div>`;
+    const result = validateSelection(selectText(document.getElementById("body")!));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.snapshot.context).toEqual({ role: "assistant", index: null, position: null });
   });
 
   it("rejects a selection inside an editable", () => {

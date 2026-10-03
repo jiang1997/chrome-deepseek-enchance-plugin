@@ -2,14 +2,15 @@
   "name": "deepseek-enhancer",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "DeepSeek web enhancement extension: quote selections into the composer (Manifest V3)",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/copy-license.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "inspect:deepseek": "node scripts/inspect-deepseek.mjs",
@@ -19,14 +20,14 @@
     "pack:crx": "npm run build && node scripts/pack-crx.mjs"
   },
   "devDependencies": {
-    "@crxjs/vite-plugin": "^2.0.0",
+    "@crxjs/vite-plugin": "^3.0.0",
     "@playwright/test": "^1.63.0",
     "@types/chrome": "^0.0.280",
     "crx3": "^2.0.0",
     "jsdom": "^24.0.0",
     "typescript": "^5.5.0",
-    "vite": "^5.4.0",
-    "vitest": "^2.1.0",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3",
     "yazl": "^3.3.1"
   }
 }

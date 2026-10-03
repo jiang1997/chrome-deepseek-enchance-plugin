@@ -19,6 +19,8 @@ export function computePopupPosition(
 
 export type PopupCallbacks = {
   onQuote: () => void;
+  /** Fired whenever the popup closes, including internal hides (e.g. the anchor moved away). */
+  onHide?: () => void;
 };
 
 export class QuotePopup {
@@ -108,6 +110,7 @@ export class QuotePopup {
       this.hintTimer = null;
     }
     this.restoreLabel();
+    this.callbacks.onHide?.();
   }
 
   destroy(): void {
@@ -123,6 +126,13 @@ export class QuotePopup {
     this.anchor = null;
     this.anchorObserver?.disconnect();
     this.anchorObserver = null;
+    this.callbacks.onHide?.();
+  }
+
+  /** Disable the action button while a quote is being written (also blocks duplicate clicks). */
+  setBusy(busy: boolean): void {
+    if (!this.button) return;
+    this.button.disabled = busy;
   }
 
   isInside(node: Node | null): boolean {

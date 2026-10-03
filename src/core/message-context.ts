@@ -2,15 +2,16 @@
  * Resolve who wrote a selected message and its ordinal, from DeepSeek's conversation DOM.
  *
  * Signals used (verified against the live page):
- * - Every rendered message item carries `data-virtual-list-item-key` (a sequential,
- *   1-based position in the conversation). This is a data attribute from DeepSeek's
- *   virtual-list library, so it survives CSS-module hash churn.
+ * - Every rendered message item carries `data-virtual-list-item-key`, a message ID
+ *   used for DOM identity. IDs are not positions and may skip or change order.
+ * - The visible-items window exposes its offset via `--dsl-virtual-list-transform-y`.
+ *   Only a zero offset establishes that counting starts at the first message.
  * - Assistant messages contain `.ds-assistant-message-main-content` (and, while
  *   thinking, `.ds-think-content` / `.ds-markdown`).
  * - User messages contain `.ds-collapsible-text`.
  *
- * All of these are semantic hooks; if DeepSeek changes them the resolver degrades to
- * `unknown` and the quote is left unlabelled rather than mislabelled.
+ * Missing role hooks leave the quote unlabelled. Missing window metadata or an
+ * unmounted prefix leaves only the role label, without guessing an ordinal.
  */
 
 export type MessageRole = "assistant" | "user" | "unknown";
@@ -27,6 +28,8 @@ export type MessageContext = {
 export const MESSAGE_ITEM_ATTR = "data-virtual-list-item-key";
 /** Container that holds all rendered message items. */
 export const MESSAGE_LIST_SELECTOR = ".ds-virtual-list-items";
+const VISIBLE_ITEMS_SELECTOR = ".ds-virtual-list-visible-items";
+const WINDOW_OFFSET_PROPERTY = "--dsl-virtual-list-transform-y";
 
 const ASSISTANT_CONTENT_SELECTOR =
   ".ds-assistant-message-main-content, .ds-think-content, .ds-markdown";
@@ -45,14 +48,6 @@ export function findMessageItem(node: Node | null): HTMLElement | null {
   return el.closest<HTMLElement>(`[${MESSAGE_ITEM_ATTR}]`);
 }
 
-/** Absolute 1-based position from the virtual-list key. */
-export function readMessagePosition(item: Element): number | null {
-  const raw = item.getAttribute(MESSAGE_ITEM_ATTR);
-  if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
-}
-
 /**
  * Classify a message item by the semantic class names of its content.
  * Assistant is tested first because its markers are the most specific.
@@ -63,25 +58,27 @@ export function classifyMessageRole(item: Element): MessageRole {
   return "unknown";
 }
 
-type RoleCount = { index: number; fromStart: boolean };
-
 /**
- * Count same-role items at or before `position`.
- * `fromStart` reports whether the rendered window begins at the first message,
- * in which case the count is exact even for long conversations.
+ * Count in DOM order only when the virtual list explicitly renders from its start.
+ * Message IDs cannot establish the starting point, order, or number of missing items.
  */
-function countRoleUpTo(item: Element, role: MessageRole, position: number): RoleCount {
-  const list = item.closest(MESSAGE_LIST_SELECTOR);
-  if (!list) return { index: 0, fromStart: false };
+function countRoleFromStart(item: Element, role: MessageRole): Pick<MessageContext, "index" | "position"> {
+  const unavailable = { index: null, position: null };
+  const renderedWindow = item.closest<HTMLElement>(VISIBLE_ITEMS_SELECTOR);
+  if (!renderedWindow?.closest(MESSAGE_LIST_SELECTOR)) return unavailable;
+  if (renderedWindow.style.getPropertyValue(WINDOW_OFFSET_PROPERTY).trim() !== "0px") return unavailable;
+
   let index = 0;
-  let minPosition = Number.POSITIVE_INFINITY;
-  for (const el of Array.from(list.querySelectorAll<HTMLElement>(`[${MESSAGE_ITEM_ATTR}]`))) {
-    const pos = readMessagePosition(el);
-    if (pos === null) continue;
-    if (pos < minPosition) minPosition = pos;
-    if (pos <= position && classifyMessageRole(el) === role) index += 1;
+  let position = 0;
+  for (const el of Array.from(renderedWindow.children)) {
+    if (!el.hasAttribute(MESSAGE_ITEM_ATTR)) return unavailable;
+    const itemRole = classifyMessageRole(el);
+    if (itemRole === "unknown") return unavailable;
+    position += 1;
+    if (itemRole === role) index += 1;
+    if (el === item) return { index, position };
   }
-  return { index, fromStart: minPosition <= 1 };
+  return unavailable;
 }
 
 /** Short badge for UI, e.g. `AI #2` / `You #1`; empty when unknown. */
@@ -100,17 +97,6 @@ export function resolveMessageContext(node: Node | null): MessageContext {
   if (!item) return { role: "unknown", index: null, position: null };
 
   const role = classifyMessageRole(item);
-  const position = readMessagePosition(item);
-  if (role === "unknown" || position === null) {
-    return { role, index: null, position };
-  }
-
-  const { index, fromStart } = countRoleUpTo(item, role, position);
-  if (fromStart) return { role, index, position };
-
-  // Long conversations virtualize the list, so earlier items may be unmounted.
-  // Keys are sequential and DeepSeek turns alternate user/assistant starting with
-  // the user, so derive the ordinal from the absolute position as a best effort.
-  const derived = role === "user" ? Math.ceil(position / 2) : Math.floor(position / 2);
-  return { role, index: derived || null, position };
+  if (role === "unknown") return { role, index: null, position: null };
+  return { role, ...countRoleFromStart(item, role) };
 }

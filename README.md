@@ -1,4 +1,14 @@
-# DeepSeek Enhancer
+<p align="center">
+  <img src="icons/source.svg" width="96" height="96" alt="DeepSeek Enhancer icon: white quotation marks on a blue rounded square">
+</p>
+
+<h1 align="center">DeepSeek Enhancer</h1>
+
+<p align="center">
+  <a href="https://github.com/jiang1997/chrome-deepseek-enchance-plugin/actions/workflows/ci.yml"><img src="https://github.com/jiang1997/chrome-deepseek-enchance-plugin/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/jiang1997/chrome-deepseek-enchance-plugin/releases"><img src="https://img.shields.io/github/package-json/v/jiang1997/chrome-deepseek-enchance-plugin?label=version&color=4D6BFE" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/jiang1997/chrome-deepseek-enchance-plugin?color=4D6BFE" alt="License: MIT"></a>
+</p>
 
 Select text in a DeepSeek response and quote it into the composer to keep asking. The extension runs locally and does not upload chat content.
 
@@ -16,7 +26,7 @@ When the selection sits inside a conversation message, the quote also records wh
 “A closure keeps the lexical environment it could access when it was created.”
 ```
 
-Role and ordinal are read from the page's semantic DOM hooks (message list items and assistant/user content classes). If they cannot be determined, the label is omitted and the quote falls back to plain `“selected text”`.
+Role is read from the page's message content classes. Ordinals are counted in DOM order only when the virtual list explicitly renders from the first message; message IDs are never treated as positions. When the ordinal cannot be determined, the label contains only `AI` or `You`. Selections spanning multiple messages, or with an unknown role, fall back to plain `“selected text”`.
 
 ## Screenshots
 
@@ -95,4 +105,4 @@ Privacy policy: https://jiang1997.github.io/chrome-deepseek-enchance-plugin/priv
 
 ## Limitations
 
-DeepSeek may change its composer or page structure. Dark mode and browser zoom still need full manual regression coverage. Message role/ordinal detection depends on DeepSeek's message-list DOM; it degrades to an unlabelled quote if those hooks change. Ordinals for very long, virtualized conversations are derived from the message position under the usual alternating user/assistant turn order.
+DeepSeek may change its composer or page structure. Dark mode and browser zoom still need full manual regression coverage. Message role detection depends on DeepSeek's message-list DOM; it degrades to an unlabelled quote if those hooks change. Ordinals are omitted when earlier messages are unmounted, a preceding role is unknown, or the virtual-list window offset is unavailable.

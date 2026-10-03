@@ -124,7 +124,10 @@ export function validateSelection(sel: Selection | null): ValidateResult {
   }
   if (!isValidRect(rect)) return { ok: false, reason: "no-rect" };
 
-  return { ok: true, snapshot: { text, rect, context: resolveMessageContext(anchorNode) } };
+  // Only label text contained in one message, independently of drag direction.
+  // Multiple ranges or a common ancestor outside a message have no single source.
+  const context = resolveMessageContext(sel.rangeCount === 1 ? range.commonAncestorContainer : null);
+  return { ok: true, snapshot: { text, rect, context } };
 }
 
 /** Read and validate the current window selection; return null on failure. */

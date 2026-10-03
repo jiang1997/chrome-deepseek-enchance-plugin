@@ -21,10 +21,11 @@
   <main>
     <!--
       Mirrors chat.deepseek.com's message list. The real page uses a virtual list whose
-      items carry data-virtual-list-item-key (sequential position) and semantic content
-      classes. Role + ordinal resolution relies on those hooks only.
+      items carry data-virtual-list-item-key (message ID) and semantic content classes.
+      Ordinals are counted in DOM order only when the visible window starts at zero.
     -->
     <div class="ds-virtual-list-items" id="messages">
+      <div class="ds-virtual-list-visible-items" style="--dsl-virtual-list-transform-y: 0px">
       <div class="_9663006" data-virtual-list-item-key="1">
         <div class="ds-message">
           <div class="fbb737a4"><div class="ds-collapsible-text"><div><span>What is a closure?</span></div></div></div>
@@ -48,6 +49,7 @@
             <pre><code>function outer() { const x = 1; return () =&gt; x; }</code></pre>
           </div>
         </div>
+      </div>
       </div>
     </div>
   </main>
