@@ -19,6 +19,15 @@ Select text in a DeepSeek response and quote it into the composer to keep asking
 3. Click Quote. The text is appended to your draft as `“selected text”`, with the cursor after the quote.
 4. Keep typing, edit the quote, and send the message yourself. Existing draft text is preserved.
 
+When the selection sits inside a conversation message, the quote also records where it came from, so the model can tell your words from its own:
+
+```text
+[Quote · AI #2]
+“A closure keeps the lexical environment it could access when it was created.”
+```
+
+Role is read from the page's message content classes. Ordinals are counted in DOM order only when the virtual list explicitly renders from the first message; message IDs are never treated as positions. When the ordinal cannot be determined, the label contains only `AI` or `You`. Selections spanning multiple messages, or with an unknown role, fall back to plain `“selected text”`.
+
 ## Screenshots
 
 | 1. Select & Quote | 2. Ask a Follow-up |
@@ -56,7 +65,9 @@ Then use **Load unpacked** in `chrome://extensions` and select the generated `di
 ## Check the extension
 
 - Select text in a response, including a list or code block. A prompt should appear above the composer.
-- Click Quote. The composer appends the text; the cursor stays after it.
+- The prompt preview shows the source badge (for example `Selected AI #2: ...`) when it can be resolved.
+- Click Quote. The composer appends the labelled quote; the cursor stays after it.
+- Quoting your own earlier message labels it as `You #N`.
 - Existing draft text stays intact. You can keep typing, edit, and send manually.
 - Clicking elsewhere or pressing Escape hides the prompt. Scrolling and resizing keep it aligned.
 - Selecting text inside the composer shows no prompt. Selections over 5,000 characters are rejected.
@@ -94,4 +105,4 @@ Privacy policy: https://jiang1997.github.io/chrome-deepseek-enchance-plugin/priv
 
 ## Limitations
 
-DeepSeek may change its composer or page structure. Dark mode and browser zoom still need full manual regression coverage.
+DeepSeek may change its composer or page structure. Dark mode and browser zoom still need full manual regression coverage. Message role detection depends on DeepSeek's message-list DOM; it degrades to an unlabelled quote if those hooks change. Ordinals are omitted when earlier messages are unmounted, a preceding role is unknown, or the virtual-list window offset is unavailable.

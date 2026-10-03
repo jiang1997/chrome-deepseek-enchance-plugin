@@ -1,10 +1,19 @@
-/** Quote text formatting (pure function). */
+/** Quote text formatting (pure functions). */
+import { describeMessageContext, type MessageContext } from "./message-context";
 
 export const MAX_QUOTE_LENGTH = 5000;
 
-export function formatQuote(rawText: string): string {
+/** Human-readable provenance label, e.g. `[Quote · AI #2]`; empty when unknown. */
+export function formatQuoteLabel(context?: MessageContext | null): string {
+  const badge = describeMessageContext(context);
+  return badge ? `[Quote · ${badge}]` : "";
+}
+
+export function formatQuote(rawText: string, context?: MessageContext | null): string {
   const text = rawText.replace(/\r\n?/g, "\n").trim();
-  return `“${text}”\n\n`;
+  const label = formatQuoteLabel(context);
+  const quoted = `“${text}”`;
+  return label ? `${label}\n${quoted}\n\n` : `${quoted}\n\n`;
 }
 
 /** Append a quote to the end of the existing draft, adding a newline first if needed. */

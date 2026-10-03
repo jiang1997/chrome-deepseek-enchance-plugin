@@ -78,6 +78,53 @@ describe("content script event flow", () => {
     expect(getPopup().style.display).toBe("none");
   });
 
+  it.each(["user", "assistant"])("previews and inserts provenance for a %s message", (role) => {
+    const composer = mountComposer("draft");
+    const list = document.createElement("div");
+    list.className = "ds-virtual-list-items";
+    list.innerHTML = `<div class="ds-virtual-list-visible-items" style="--dsl-virtual-list-transform-y: 0px">
+      <div data-virtual-list-item-key="9"><div class="ds-collapsible-text"><span>Question</span></div></div>
+      <div data-virtual-list-item-key="14"><div class="ds-assistant-message-main-content"><p>Answer</p></div></div>
+    </div>`;
+    document.body.appendChild(list);
+    selectText(list.querySelector(role === "user" ? "span" : "p")!);
+    showPopup();
+    const badge = role === "user" ? "You #1" : "AI #1";
+    const text = role === "user" ? "Question" : "Answer";
+    expect(getPopup().textContent).toContain(`Selected ${badge}: ${text}`);
+    getButton().click();
+    expect(composer.value).toBe(`draft\n[Quote · ${badge}]\n“${text}”\n\n`);
+  });
+
+  it("inserts only the role label when the message prefix is unmounted", () => {
+    const composer = mountComposer();
+    const list = document.createElement("div");
+    list.className = "ds-virtual-list-items";
+    list.innerHTML = `<div class="ds-virtual-list-visible-items" style="--dsl-virtual-list-transform-y: 800px">
+      <div data-virtual-list-item-key="6"><div class="ds-assistant-message-main-content"><p>Answer</p></div></div>
+    </div>`;
+    document.body.appendChild(list);
+    selectText(list.querySelector("p")!);
+    showPopup();
+    expect(getPopup().textContent).toContain("Selected AI: Answer");
+    getButton().click();
+    expect(composer.value).toBe("[Quote · AI]\n“Answer”\n\n");
+  });
+
+  it("inserts a plain quote for a selection spanning authors", () => {
+    const composer = mountComposer();
+    const list = document.createElement("div");
+    list.innerHTML = `<div data-virtual-list-item-key="1"><div class="ds-collapsible-text">Question</div></div>
+      <div data-virtual-list-item-key="2"><div class="ds-assistant-message-main-content">Answer</div></div>`;
+    document.body.appendChild(list);
+    const selection = selectText(list);
+    const text = selection.toString().trim();
+    showPopup();
+    expect(getPopup().textContent).toContain(`Selected: ${text}`);
+    getButton().click();
+    expect(composer.value).toBe(`“${text}”\n\n`);
+  });
+
   it("closes the prompt when Escape is pressed", () => {
     mountComposer();
     mountSelection();

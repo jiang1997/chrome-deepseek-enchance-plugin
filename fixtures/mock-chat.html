@@ -19,17 +19,43 @@
     <nav><p>Chat history</p></nav>
   </aside>
   <main>
-    <article class="msg" id="msg1">
-      <h3>What is a closure?</h3>
-      <p>A JavaScript closure keeps the lexical environment it could access when it was created. Even after the outer function returns, the inner function can still access variables from the outer scope.</p>
-    </article>
-    <article class="msg" id="msg2">
-      <pre><code>function outer() { const x = 1; return () =&gt; x; }</code></pre>
-    </article>
+    <!--
+      Mirrors chat.deepseek.com's message list. The real page uses a virtual list whose
+      items carry data-virtual-list-item-key (message ID) and semantic content classes.
+      Ordinals are counted in DOM order only when the visible window starts at zero.
+    -->
+    <div class="ds-virtual-list-items" id="messages">
+      <div class="ds-virtual-list-visible-items" style="--dsl-virtual-list-transform-y: 0px">
+      <div class="_9663006" data-virtual-list-item-key="1">
+        <div class="ds-message">
+          <div class="fbb737a4"><div class="ds-collapsible-text"><div><span>What is a closure?</span></div></div></div>
+        </div>
+      </div>
+      <div class="_4f9bf79 _43c05b5" data-virtual-list-item-key="2">
+        <div class="ds-message">
+          <div class="ds-markdown ds-assistant-message-main-content">
+            <p class="ds-markdown-paragraph">A JavaScript closure keeps the lexical environment it could access when it was created. Even after the outer function returns, the inner function can still access variables from the outer scope.</p>
+          </div>
+        </div>
+      </div>
+      <div class="_9663006" data-virtual-list-item-key="3">
+        <div class="ds-message">
+          <div class="fbb737a4"><div class="ds-collapsible-text"><div><span>Show me an example.</span></div></div></div>
+        </div>
+      </div>
+      <div class="_4f9bf79 _43c05b5" data-virtual-list-item-key="4">
+        <div class="ds-message">
+          <div class="ds-markdown ds-assistant-message-main-content">
+            <pre><code>function outer() { const x = 1; return () =&gt; x; }</code></pre>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
   </main>
   <div class="composer-wrap">
     <!-- Scenario A: a textarea composer; to verify contenteditable, replace the element below with div[contenteditable] -->
-    <textarea id="composer" aria-label="Send message" placeholder="Type a message, press Enter to send"></textarea>
+    <textarea id="composer" aria-label="Send message" placeholder="Message DeepSeek"></textarea>
   </div>
 </body>
 </html>

@@ -2,6 +2,7 @@
 import { validateSelection, MAX_SELECTION_LENGTH, type SelectionSnapshot } from "./selection";
 import { QuotePopup } from "./popup";
 import { formatQuote } from "./quote";
+import { describeMessageContext } from "./message-context";
 import {
   findComposer,
   findComposerWithRetry,
@@ -85,7 +86,7 @@ export function init(): void {
       }
       state.snapshot = result.snapshot;
       state.composer = composer;
-      popup.show(composer, result.snapshot.text);
+      popup.show(composer, result.snapshot.text, describeMessageContext(result.snapshot.context));
     });
   }
 
@@ -103,7 +104,7 @@ export function init(): void {
     quoteController = controller;
     popup.setBusy(true);
 
-    const quote = formatQuote(snapshot.text);
+    const quote = formatQuote(snapshot.text, snapshot.context);
     try {
       let composer = state.composer;
       if (!composer || !isComposerEditable(composer)) {
@@ -202,4 +203,3 @@ export function destroy(): void {
   teardown?.();
   teardown = null;
 }
-
