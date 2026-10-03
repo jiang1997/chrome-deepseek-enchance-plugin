@@ -17,6 +17,31 @@ declare global {
   }
 }
 
+type SelectionIdentity = {
+  text: string;
+  startNode: Node;
+  startOffset: number;
+  endNode: Node;
+  endOffset: number;
+};
+
+function selectionIdentity(sel: Selection | null): SelectionIdentity | null {
+  if (!sel || sel.isCollapsed || sel.rangeCount !== 1) return null;
+  const range = sel.getRangeAt(0);
+  return {
+    text: sel.toString(),
+    startNode: range.startContainer,
+    startOffset: range.startOffset,
+    endNode: range.endContainer,
+    endOffset: range.endOffset,
+  };
+}
+
+function sameSelection(a: SelectionIdentity | null, b: SelectionIdentity | null): boolean {
+  return !!a && !!b && a.text === b.text && a.startNode === b.startNode &&
+    a.startOffset === b.startOffset && a.endNode === b.endNode && a.endOffset === b.endOffset;
+}
+
 type PluginState = {
   snapshot: SelectionSnapshot | null;
   composer: ComposerElement | null;
@@ -34,6 +59,11 @@ export function init(): void {
   const state: PluginState = { snapshot: null, composer: null };
   const popup = new QuotePopup({ onQuote: handleQuote, onHide: resetQuoteState });
   let pendingFrame: number | null = null;
+  let layoutFrame: number | null = null;
+  let lastSelection: SelectionIdentity | null = null;
+  // DeepSeek's chat ID is in the path; in-page anchors must not discard a quote.
+  let conversationPath = window.location.pathname;
+  const navigation = (window as Window & { navigation?: EventTarget }).navigation;
   let quoteController: AbortController | null = null;
   let quoting = false;
 
@@ -48,14 +78,17 @@ export function init(): void {
     quoteController?.abort();
     quoteController = null;
     quoting = false;
+    popup.setBusy(false);
   }
 
   /**
-   * Clear every bit of selection/quote state. Runs on every popup close path, including the
-   * internal hides triggered by popup.reposition(), so a stale quote can never be written.
+   * Discard pending content only on dismissal, success, or conversation/page navigation.
+   * Keep the last observed selection so dismissal does not immediately reopen the prompt.
    */
   function resetQuoteState(): void {
     cancelPendingFrame();
+    if (layoutFrame !== null) cancelAnimationFrame(layoutFrame);
+    layoutFrame = null;
     cancelPendingQuote();
     state.snapshot = null;
     state.composer = null;
@@ -66,31 +99,72 @@ export function init(): void {
     popup.hide();
   }
 
+  function syncConversation(): boolean {
+    const path = window.location.pathname;
+    if (path === conversationPath) return false;
+    conversationPath = path;
+    lastSelection = selectionIdentity(window.getSelection());
+    hidePopup();
+    return true;
+  }
+
+  function refreshPopup(): void {
+    if (syncConversation()) return;
+    if (!state.snapshot) {
+      popup.reposition();
+      return;
+    }
+    if (document.hidden) {
+      popup.suspend();
+      return;
+    }
+    const composer = state.composer?.isConnected ? state.composer : findComposer();
+    if (!composer) {
+      popup.suspend();
+      return;
+    }
+    state.composer = composer;
+    if (popup.isOpen) popup.setAnchor(composer);
+    else popup.show(composer, state.snapshot.text, describeMessageContext(state.snapshot.context));
+  }
+
   function maybeShowPopup(): void {
-    // A selection event immediately supersedes any quote still waiting on the old selection.
-    // This must happen before the delayed read below: the pending lookup may have already
-    // queued a frame ahead of the preview and would otherwise win the race.
-    cancelPendingQuote();
-    // Read on the next frame after the selection event to avoid stale values
+    if (syncConversation() || document.hidden) return;
+    const sel = window.getSelection();
+    // Cancel a superseded quote immediately, before a lookup queued ahead of our frame settles.
+    if (!sameSelection(selectionIdentity(sel), lastSelection) && validateSelection(sel).ok) {
+      cancelPendingQuote();
+    }
     cancelPendingFrame();
     pendingFrame = requestAnimationFrame(() => {
       pendingFrame = null;
-      const result = validateSelection(window.getSelection());
-      const composer = findComposer();
-      if (!result.ok || !composer) {
-        hidePopup();
-        if (!result.ok && result.reason === "too-long" && composer) {
-          popup.showTransientMessage(composer, `Up to ${MAX_SELECTION_LENGTH} characters can be quoted`);
+      if (syncConversation() || document.hidden) return;
+      const selection = window.getSelection();
+      const identity = selectionIdentity(selection);
+      const result = validateSelection(selection);
+      if (!result.ok) {
+        if (!identity) lastSelection = null;
+        if (result.reason === "too-long") {
+          const message = `Up to ${MAX_SELECTION_LENGTH} characters can be quoted`;
+          if (state.snapshot) popup.showNotice(message);
+          else {
+            const composer = findComposer();
+            if (composer) popup.showTransientMessage(composer, message);
+          }
         }
         return;
       }
+      if (sameSelection(identity, lastSelection)) return;
+      lastSelection = identity;
+      cancelPendingQuote();
       state.snapshot = result.snapshot;
-      state.composer = composer;
-      popup.show(composer, result.snapshot.text, describeMessageContext(result.snapshot.context));
+      state.composer = findComposer();
+      popup.show(state.composer, result.snapshot.text, describeMessageContext(result.snapshot.context));
     });
   }
 
   async function handleQuote(): Promise<void> {
+    if (syncConversation() || document.hidden) return;
     // A click may land while a previous lookup is still running; ignore it.
     if (quoting) return;
     const snapshot = state.snapshot;
@@ -110,20 +184,21 @@ export function init(): void {
       if (!composer || !isComposerEditable(composer)) {
         composer = await findComposerWithRetry(RETRY_TIMEOUT_MS, controller.signal);
       }
-      // The prompt was closed (Escape, click-away, page hide) while looking the composer up.
-      if (controller.signal.aborted) return;
+      // Navigation, manual dismissal, or tab suspension cancels pending writes.
+      if (syncConversation() || controller.signal.aborted || document.hidden) return;
       // A newer selection replaced this one in the meantime; drop the stale quote.
       if (state.snapshot !== snapshot) return;
       // Re-confirm right before writing: it may have been removed or disabled in the meantime.
       if (!composer || !isComposerEditable(composer)) {
-        hidePopup();
+        refreshPopup();
+        popup.showNotice("Composer unavailable, please try again");
         return;
       }
+      state.composer = composer;
+      popup.setAnchor(composer);
       const ok = insertIntoComposer(composer, quote);
       if (!ok) {
-        popup.showTransientMessage(composer, "Insert failed, please try again");
-        state.snapshot = null;
-        state.composer = null;
+        popup.showNotice("Insert failed, please try again");
         return;
       }
       hidePopup();
@@ -131,6 +206,7 @@ export function init(): void {
       if (quoteController === controller) {
         quoteController = null;
         quoting = false;
+        popup.setBusy(false);
       }
     }
   }
@@ -144,7 +220,7 @@ export function init(): void {
   function onKeyUp(e: KeyboardEvent): void {
     // Only respond to keys that can change the selection: Shift + arrows / select all / Escape handled separately
     if (e.key === "Escape") {
-      if (popup.visible) hidePopup();
+      if (state.snapshot || popup.isOpen) hidePopup();
       return;
     }
     if (e.shiftKey || e.key.startsWith("Arrow") || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a")) {
@@ -153,29 +229,48 @@ export function init(): void {
   }
 
   function onPointerDown(e: PointerEvent): void {
-    // Clicking elsewhere on the page hides it (capture phase, skip the popup itself)
     if (popup.isInside(e.target as Node)) return;
+    syncConversation();
     cancelPendingFrame();
-    if (popup.visible) hidePopup();
   }
 
   function onScroll(): void {
-    // Keep the prompt attached above the composer when its position changes.
-    popup.reposition();
+    refreshPopup();
   }
 
   function onResize(): void {
-    popup.reposition();
+    refreshPopup();
   }
+
+  function onLocationChange(): void {
+    syncConversation();
+  }
+
+  // Also catch SPA navigation on older browsers and replacement composers in the same chat.
+  const observer = new MutationObserver(() => {
+    if (syncConversation() || !state.snapshot || layoutFrame !== null) return;
+    layoutFrame = requestAnimationFrame(() => {
+      layoutFrame = null;
+      refreshPopup();
+    });
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
 
   function onPageHide(): void {
     hidePopup();
   }
 
   function onVisibilityChange(): void {
-    if (document.hidden) hidePopup();
+    if (document.hidden) {
+      cancelPendingQuote();
+      popup.suspend();
+    } else refreshPopup();
   }
 
+  document.addEventListener("selectionchange", maybeShowPopup);
+  navigation?.addEventListener("currententrychange", onLocationChange);
+  window.addEventListener("popstate", onLocationChange);
+  window.addEventListener("hashchange", onLocationChange);
   document.addEventListener("pointerup", onPointerUp);
   document.addEventListener("keyup", onKeyUp);
   document.addEventListener("pointerdown", onPointerDown, { capture: true });
@@ -185,6 +280,11 @@ export function init(): void {
   document.addEventListener("visibilitychange", onVisibilityChange);
 
   teardown = () => {
+    observer.disconnect();
+    document.removeEventListener("selectionchange", maybeShowPopup);
+    navigation?.removeEventListener("currententrychange", onLocationChange);
+    window.removeEventListener("popstate", onLocationChange);
+    window.removeEventListener("hashchange", onLocationChange);
     document.removeEventListener("pointerup", onPointerUp);
     document.removeEventListener("keyup", onKeyUp);
     document.removeEventListener("pointerdown", onPointerDown, { capture: true });

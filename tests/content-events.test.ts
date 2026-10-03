@@ -53,6 +53,7 @@ afterEach(() => {
   content = undefined;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe("content script event flow", () => {
@@ -92,6 +93,9 @@ describe("content script event flow", () => {
     const badge = role === "user" ? "You #1" : "AI #1";
     const text = role === "user" ? "Question" : "Answer";
     expect(getPopup().textContent).toContain(`Selected ${badge}: ${text}`);
+    window.getSelection()!.removeAllRanges();
+    document.dispatchEvent(new Event("selectionchange"));
+    raf.flush();
     getButton().click();
     expect(composer.value).toBe(`draft\n[Quote · ${badge}]\n“${text}”\n\n`);
   });
@@ -150,14 +154,219 @@ describe("content script event flow", () => {
     expect(document.querySelectorAll("[data-dse-popup]").length).toBe(1);
   });
 
-  it("hides the prompt when clicking elsewhere on the page", () => {
-    mountComposer();
+  it("retains the quote after clearing the selection and editing the draft", () => {
+    const composer = mountComposer();
     mountSelection();
     showPopup();
     expect(getPopup().style.display).toBe("flex");
 
     document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    window.getSelection()!.removeAllRanges();
+    document.dispatchEvent(new Event("selectionchange"));
+    document.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    raf.flush();
+    composer.focus();
+    composer.value = "My follow-up";
+    expect(getPopup().style.display).toBe("flex");
+    expect(getPopup().textContent).toContain("Selected sentence.");
+    getButton().click();
+    expect(composer.value).toBe("My follow-up\n“Selected sentence.”\n\n");
+  });
 
+  it("dismisses with × without reopening the unchanged selection", () => {
+    const composer = mountComposer("draft");
+    mountSelection();
+    showPopup();
+    document.querySelector<HTMLButtonElement>(".dse-popup-close")!.click();
     expect(getPopup().style.display).toBe("none");
+    document.dispatchEvent(new Event("selectionchange"));
+    showPopup();
+    expect(getPopup().style.display).toBe("none");
+    expect(composer.value).toBe("draft");
+    mountSelection("New selection.");
+    showPopup();
+    expect(getPopup().textContent).toContain("New selection.");
+    expect(getPopup().style.display).toBe("flex");
+  });
+
+  it("ignores editable selections and retains the saved source", () => {
+    const composer = mountComposer();
+    mountSelection("Original response.");
+    showPopup();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "Draft text";
+    document.body.appendChild(editable);
+    selectText(editable);
+    showPopup();
+    expect(getPopup().textContent).toContain("Original response.");
+    getButton().click();
+    expect(composer.value).toBe("“Original response.”\n\n");
+  });
+
+  it("reports an overlong selection without replacing the pending quote", () => {
+    const composer = mountComposer();
+    mountSelection("Original response.");
+    showPopup();
+    mountSelection("x".repeat(5001));
+    showPopup();
+    expect(getPopup().textContent).toContain("Original response.");
+    expect(getPopup().textContent).toContain("Up to 5000 characters");
+    expect(getButton().disabled).toBe(false);
+    getButton().click();
+    expect(composer.value).toBe("“Original response.”\n\n");
+  });
+
+  it("keeps the preview after temporary feedback expires", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    mountComposer();
+    mountSelection("Original response.");
+    showPopup();
+    mountSelection("x".repeat(5001));
+    showPopup();
+    vi.advanceTimersByTime(1600);
+    expect(document.querySelector<HTMLElement>(".dse-popup-notice")!.hidden).toBe(true);
+    expect(getPopup().style.display).toBe("flex");
+    expect(getPopup().textContent).toContain("Original response.");
+    expect(getButton().disabled).toBe(false);
+  });
+
+  it("dismisses immediately through the Navigation API and removes its listener on teardown", () => {
+    content!.destroy();
+    const navigation = new EventTarget();
+    vi.stubGlobal("navigation", navigation);
+    const remove = vi.spyOn(navigation, "removeEventListener");
+    content!.init();
+    mountComposer();
+    mountSelection();
+    showPopup();
+    const previousUrl = window.location.href;
+    try {
+      window.history.pushState(null, "", "/a/chat/s/another-conversation");
+      navigation.dispatchEvent(new Event("currententrychange"));
+      expect(getPopup().style.display).toBe("none");
+      content!.destroy();
+      expect(remove).toHaveBeenCalledWith("currententrychange", expect.any(Function));
+    } finally {
+      window.history.replaceState(null, "", previousUrl);
+    }
+  });
+
+  it("restores the popup after the composer returns to the viewport", () => {
+    const composer = mountComposer();
+    mountSelection();
+    showPopup();
+    stubRect(composer, { top: 900, bottom: 1000 });
+    window.dispatchEvent(new Event("scroll"));
+    expect(getPopup().style.display).toBe("none");
+    window.getSelection()!.removeAllRanges();
+    stubRect(composer);
+    window.dispatchEvent(new Event("scroll"));
+    expect(getPopup().style.display).toBe("flex");
+    getButton().click();
+    expect(composer.value).toBe("“Selected sentence.”\n\n");
+  });
+
+  it("allows Escape to discard a temporarily hidden quote", () => {
+    const composer = mountComposer();
+    mountSelection();
+    showPopup();
+    stubRect(composer, { top: 900, bottom: 1000 });
+    window.dispatchEvent(new Event("scroll"));
+    document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape" }));
+    stubRect(composer);
+    window.dispatchEvent(new Event("scroll"));
+    expect(getPopup().style.display).toBe("none");
+  });
+
+  it("retains pending content when switching tabs", () => {
+    const composer = mountComposer();
+    mountSelection();
+    showPopup();
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(getPopup().style.display).toBe("none");
+    window.getSelection()!.removeAllRanges();
+    hidden.mockReturnValue(false);
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(getPopup().style.display).toBe("flex");
+    getButton().click();
+    expect(composer.value).toBe("“Selected sentence.”\n\n");
+  });
+
+  it("restores pending content when the composer is replaced in the same chat", async () => {
+    const composer = mountComposer();
+    mountSelection();
+    showPopup();
+    window.getSelection()!.removeAllRanges();
+    composer.remove();
+    window.dispatchEvent(new Event("scroll"));
+    expect(getPopup().style.display).toBe("none");
+    const replacement = mountComposer("new draft");
+    await Promise.resolve();
+    raf.flush();
+    expect(getPopup().style.display).toBe("flex");
+    getButton().click();
+    expect(replacement.value).toBe("new draft\n“Selected sentence.”\n\n");
+  });
+
+  it("restores the new preview if selection changes while the composer is absent", async () => {
+    const composer = mountComposer();
+    mountSelection("First selection.");
+    showPopup();
+    composer.remove();
+    window.dispatchEvent(new Event("scroll"));
+    mountSelection("Second selection.");
+    showPopup();
+    expect(getPopup().style.display).toBe("none");
+    const replacement = mountComposer();
+    await Promise.resolve();
+    raf.flush();
+    expect(getPopup().style.display).toBe("flex");
+    expect(getPopup().textContent).toContain("Second selection.");
+    getButton().click();
+    expect(replacement.value).toBe("“Second selection.”\n\n");
+  });
+
+  it("clears pending content on pagehide", () => {
+    mountComposer();
+    mountSelection();
+    showPopup();
+    window.dispatchEvent(new Event("pagehide"));
+    window.dispatchEvent(new Event("scroll"));
+    expect(getPopup().style.display).toBe("none");
+  });
+
+  it("keeps pending content when an in-page anchor changes", () => {
+    mountComposer();
+    mountSelection();
+    showPopup();
+    const previousUrl = window.location.href;
+    try {
+      window.history.replaceState(null, "", `${window.location.pathname}#section`);
+      window.dispatchEvent(new Event("hashchange"));
+      expect(getPopup().style.display).toBe("flex");
+      expect(getPopup().textContent).toContain("Selected sentence.");
+    } finally {
+      window.history.replaceState(null, "", previousUrl);
+    }
+  });
+
+  it("clears pending content on SPA navigation even without a popstate event", async () => {
+    mountComposer();
+    mountSelection();
+    showPopup();
+    const previousUrl = window.location.href;
+    try {
+      window.history.pushState(null, "", "/a/chat/s/new-conversation");
+      document.body.appendChild(document.createElement("div"));
+      await Promise.resolve();
+      raf.flush();
+      expect(getPopup().style.display).toBe("none");
+      showPopup();
+      expect(getPopup().style.display).toBe("none");
+    } finally {
+      window.history.replaceState(null, "", previousUrl);
+    }
   });
 });

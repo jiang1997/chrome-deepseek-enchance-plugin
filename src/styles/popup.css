@@ -6,6 +6,7 @@
   display: none;
   box-sizing: border-box;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 8px 10px;
   border: 1px solid rgba(127, 127, 127, 0.35);
@@ -57,6 +58,36 @@
 .dse-popup-btn:disabled {
   cursor: default;
   opacity: 0.9;
+}
+
+.dse-popup-close {
+  all: unset;
+  box-sizing: border-box;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 20px;
+  line-height: 28px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dse-popup-close:hover {
+  background: rgba(127, 127, 127, 0.15);
+}
+
+.dse-popup-close:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.dse-popup-notice {
+  flex-basis: 100%;
+  color: inherit;
+  font-size: 12px;
 }
 
 @media (prefers-color-scheme: dark) {

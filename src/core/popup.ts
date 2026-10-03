@@ -19,7 +19,7 @@ export function computePopupPosition(
 
 export type PopupCallbacks = {
   onQuote: () => void;
-  /** Fired whenever the popup closes, including internal hides (e.g. the anchor moved away). */
+  /** Fired when pending content is dismissed, not when temporarily suspended. */
   onHide?: () => void;
 };
 
@@ -27,11 +27,17 @@ export class QuotePopup {
   private root: HTMLDivElement | null = null;
   private preview: HTMLSpanElement | null = null;
   private button: HTMLButtonElement | null = null;
+  private notice: HTMLSpanElement | null = null;
   private hintTimer: number | null = null;
   private anchor: HTMLElement | null = null;
   private anchorObserver: ResizeObserver | null = null;
   private originalLabel = "Quote";
+  private open = false;
   visible = false;
+
+  get isOpen(): boolean {
+    return this.open && !!this.root?.isConnected;
+  }
 
   constructor(private callbacks: PopupCallbacks) {}
 
@@ -57,51 +63,88 @@ export class QuotePopup {
     btn.addEventListener("pointerdown", (e) => e.preventDefault());
     btn.addEventListener("click", () => this.callbacks.onQuote());
 
-    root.append(preview, btn);
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "dse-popup-close";
+    close.textContent = "×";
+    close.setAttribute("aria-label", "Dismiss quote");
+    close.title = "Dismiss quote (Escape)";
+    close.addEventListener("pointerdown", (e) => e.preventDefault());
+    close.addEventListener("click", () => this.hide());
+
+    const notice = document.createElement("span");
+    notice.className = "dse-popup-notice";
+    notice.setAttribute("role", "status");
+    notice.hidden = true;
+    root.append(preview, btn, close, notice);
     document.body.appendChild(root);
     this.root = root;
     this.preview = preview;
     this.button = btn;
+    this.notice = notice;
     return root;
   }
 
-  show(anchor: HTMLElement, text: string, badge = ""): void {
-    const root = this.ensureRoot();
+  show(anchor: HTMLElement | null, text: string, badge = ""): void {
+    this.ensureRoot();
     if (this.hintTimer !== null) window.clearTimeout(this.hintTimer);
     this.hintTimer = null;
     this.restoreLabel();
+    if (this.notice) this.notice.hidden = true;
     this.anchorObserver?.disconnect();
     this.anchor = anchor;
     if (this.preview) this.preview.textContent = badge ? `Selected ${badge}: ${text}` : `Selected: ${text}`;
-    root.style.display = "flex";
-    this.visible = true;
-    this.reposition();
-    if (typeof ResizeObserver !== "undefined") {
+    this.open = true;
+    if (anchor) this.reposition();
+    else this.suspend();
+    if (anchor && typeof ResizeObserver !== "undefined") {
       this.anchorObserver = new ResizeObserver(() => this.reposition());
       this.anchorObserver.observe(anchor);
     }
   }
 
   reposition(): void {
-    if (!this.root || !this.anchor || !this.visible) return;
+    if (!this.root || !this.anchor || !this.open) return;
     if (!this.anchor.isConnected) {
-      this.hide();
+      this.suspend();
       return;
     }
     const rect = this.anchor.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0 || rect.bottom < 0 || rect.top > window.innerHeight) {
-      this.hide();
+    if (document.hidden || rect.width <= 0 || rect.height <= 0 || rect.bottom < 0 || rect.top > window.innerHeight) {
+      this.suspend();
       return;
     }
+    this.root.style.display = "flex";
+    this.visible = true;
     const position = computePopupPosition(rect, this.root.offsetHeight || 44, { width: window.innerWidth });
     this.root.style.top = `${position.top}px`;
     this.root.style.left = `${position.left}px`;
     this.root.style.width = `${position.width}px`;
   }
 
+  /** Move to a replacement composer without resetting pending content or busy state. */
+  setAnchor(anchor: HTMLElement): void {
+    if (this.anchor !== anchor) {
+      this.anchorObserver?.disconnect();
+      this.anchor = anchor;
+      if (typeof ResizeObserver !== "undefined") {
+        this.anchorObserver = new ResizeObserver(() => this.reposition());
+        this.anchorObserver.observe(anchor);
+      }
+    }
+    this.reposition();
+  }
+
+  /** Hide temporarily while retaining content, the anchor, and resize observation. */
+  suspend(): void {
+    if (this.root) this.root.style.display = "none";
+    this.visible = false;
+  }
+
   hide(): void {
     if (this.root) this.root.style.display = "none";
     this.visible = false;
+    this.open = false;
     this.anchor = null;
     this.anchorObserver?.disconnect();
     this.anchorObserver = null;
@@ -122,7 +165,9 @@ export class QuotePopup {
     this.root = null;
     this.preview = null;
     this.button = null;
+    this.notice = null;
     this.visible = false;
+    this.open = false;
     this.anchor = null;
     this.anchorObserver?.disconnect();
     this.anchorObserver = null;
@@ -139,6 +184,20 @@ export class QuotePopup {
     if (!node || !this.root) return false;
     const el = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : (node as ChildNode).parentElement;
     return !!el && !!el.closest(`[${POPUP_ATTR}]`);
+  }
+
+  /** Display feedback alongside the saved preview without discarding pending content. */
+  showNotice(msg: string, duration = 1600): void {
+    if (!this.notice) return;
+    if (this.hintTimer !== null) window.clearTimeout(this.hintTimer);
+    this.notice.textContent = msg;
+    this.notice.hidden = false;
+    this.reposition();
+    this.hintTimer = window.setTimeout(() => {
+      this.hintTimer = null;
+      if (this.notice) this.notice.hidden = true;
+      this.reposition();
+    }, duration);
   }
 
   /** Transient hint (e.g. "Message composer not found"), restores after 1.6s. */
