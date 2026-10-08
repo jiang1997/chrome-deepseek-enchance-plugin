@@ -67,12 +67,12 @@ describe("findMessageItem", () => {
 
 describe("describeMessageContext", () => {
   it("formats assistant and user badges", () => {
-    expect(describeMessageContext({ role: "assistant", index: 2, position: 4 })).toBe("AI #2");
-    expect(describeMessageContext({ role: "user", index: 3, position: 5 })).toBe("You #3");
+    expect(describeMessageContext({ role: "assistant", index: 2, position: 4 })).toBe("assistant #2");
+    expect(describeMessageContext({ role: "user", index: 3, position: 5 })).toBe("user #3");
   });
 
   it("falls back to a role-only badge when the ordinal is unknown", () => {
-    expect(describeMessageContext({ role: "assistant", index: null, position: null })).toBe("AI");
+    expect(describeMessageContext({ role: "assistant", index: null, position: null })).toBe("assistant");
   });
 
   it("is empty for unknown context", () => {
@@ -149,12 +149,12 @@ describe("resolveMessageContext", () => {
       { key: 6, role: "assistant" },
     ]);
     const target = list.children[3];
-    expect(describeMessageContext(resolveMessageContext(target))).toBe("AI #2");
+    expect(describeMessageContext(resolveMessageContext(target))).toBe("assistant #2");
     list.children[0].remove();
     list.children[0].remove();
     list.style.setProperty("--dsl-virtual-list-transform-y", "800px");
     expect(resolveMessageContext(target)).toEqual({ role: "assistant", index: null, position: null });
-    expect(describeMessageContext(resolveMessageContext(target))).toBe("AI");
+    expect(describeMessageContext(resolveMessageContext(target))).toBe("assistant");
   });
 
   it("does not infer a start from message ID 1 when window metadata is missing", () => {

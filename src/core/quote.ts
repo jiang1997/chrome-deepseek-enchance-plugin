@@ -3,7 +3,7 @@ import { describeMessageContext, type MessageContext } from "./message-context";
 
 export const MAX_QUOTE_LENGTH = 5000;
 
-/** Human-readable provenance label, e.g. `[Quote · AI #2]`; empty when unknown. */
+/** Human-readable provenance label, e.g. `[Quote · assistant #2]`; empty when unknown. */
 export function formatQuoteLabel(context?: MessageContext | null): string {
   const badge = describeMessageContext(context);
   return badge ? `[Quote · ${badge}]` : "";

@@ -8,13 +8,13 @@ describe("formatQuote", () => {
 
   it("adds a provenance label for assistant replies", () => {
     expect(formatQuote("Use 16:10.", { role: "assistant", index: 1, position: 2 })).toBe(
-      "[Quote · AI #1]\n“Use 16:10.”\n\n",
+      "[Quote · assistant #1]\n“Use 16:10.”\n\n",
     );
   });
 
   it("adds a provenance label for the user's own messages", () => {
     expect(formatQuote("1280*800?", { role: "user", index: 2, position: 3 })).toBe(
-      "[Quote · You #2]\n“1280*800?”\n\n",
+      "[Quote · user #2]\n“1280*800?”\n\n",
     );
   });
 
@@ -42,7 +42,7 @@ describe("formatQuoteLabel", () => {
   });
 
   it("falls back to a role-only label when the ordinal is unknown", () => {
-    expect(formatQuoteLabel({ role: "assistant", index: null, position: null })).toBe("[Quote · AI]");
+    expect(formatQuoteLabel({ role: "assistant", index: null, position: null })).toBe("[Quote · assistant]");
   });
 });
 

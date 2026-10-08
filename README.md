@@ -25,7 +25,7 @@ The preview is retained when switching browser tabs or when the composer tempora
 When the selection sits inside a conversation message, the quote also records where it came from, so the model can tell your words from its own:
 
 ```text
-[Quote · AI #2]
+[Quote · assistant #2]
 “A closure keeps the lexical environment it could access when it was created.”
 ```
 
@@ -68,9 +68,9 @@ Then use **Load unpacked** in `chrome://extensions` and select the generated `di
 ## Check the extension
 
 - Select text in a response, including a list or code block. A prompt should appear above the composer.
-- The prompt preview shows the source badge (for example `Selected AI #2: ...`) when it can be resolved.
+- The prompt preview shows the source badge (for example `Selected assistant #2: ...`) when it can be resolved.
 - Click Quote. The composer appends the labelled quote; the cursor stays after it.
-- Quoting your own earlier message labels it as `You #N`.
+- Quoting your own earlier message labels it as `user #N`.
 - Existing draft text stays intact. You can keep typing, edit, and send manually.
 - Clearing the selection, clicking elsewhere, and editing the draft keep the pending preview. Click × or press Escape to dismiss it.
 - Scrolling and resizing keep the prompt aligned; it returns after the composer comes back into view. Changing chats clears it.

@@ -90,7 +90,7 @@ describe("content script event flow", () => {
     document.body.appendChild(list);
     selectText(list.querySelector(role === "user" ? "span" : "p")!);
     showPopup();
-    const badge = role === "user" ? "You #1" : "AI #1";
+    const badge = role === "user" ? "user #1" : "assistant #1";
     const text = role === "user" ? "Question" : "Answer";
     expect(getPopup().textContent).toContain(`Selected ${badge}: ${text}`);
     window.getSelection()!.removeAllRanges();
@@ -110,9 +110,9 @@ describe("content script event flow", () => {
     document.body.appendChild(list);
     selectText(list.querySelector("p")!);
     showPopup();
-    expect(getPopup().textContent).toContain("Selected AI: Answer");
+    expect(getPopup().textContent).toContain("Selected assistant: Answer");
     getButton().click();
-    expect(composer.value).toBe("[Quote · AI]\n“Answer”\n\n");
+    expect(composer.value).toBe("[Quote · assistant]\n“Answer”\n\n");
   });
 
   it("inserts a plain quote for a selection spanning authors", () => {

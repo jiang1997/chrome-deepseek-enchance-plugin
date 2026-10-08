@@ -81,10 +81,10 @@ function countRoleFromStart(item: Element, role: MessageRole): Pick<MessageConte
   return unavailable;
 }
 
-/** Short badge for UI, e.g. `AI #2` / `You #1`; empty when unknown. */
+/** Short badge for UI, e.g. `assistant #2` / `user #1`; empty when unknown. */
 export function describeMessageContext(context?: MessageContext | null): string {
   if (!context || context.role === "unknown") return "";
-  const who = context.role === "assistant" ? "AI" : "You";
+  const who = context.role;
   return context.index ? `${who} #${context.index}` : who;
 }
 
