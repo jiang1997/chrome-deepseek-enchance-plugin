@@ -1,0 +1,81 @@
+name: Chrome Web Store
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'status: query only; upload: save draft; publish: submit and go live after approval; staged: submit and hold after approval'
+        type: choice
+        default: status
+        options:
+          - status
+          - upload
+          - publish
+          - staged
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chrome-webstore-publish
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        if: inputs.mode != 'status'
+        run: npm ci
+      - name: Test
+        if: inputs.mode != 'status'
+        run: npm test
+      - name: Build store ZIP
+        if: inputs.mode != 'status'
+        run: npm run pack:zip
+      - name: Preserve ZIP and checksum
+        if: inputs.mode != 'status'
+        run: sha256sum release/*-unpacked.zip > release/SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        if: inputs.mode != 'status'
+        with:
+          name: chrome-webstore-package-${{ github.run_id }}
+          path: |
+            release/*-unpacked.zip
+            release/SHA256SUMS
+          if-no-files-found: error
+      - name: Read publishing configuration
+        id: config
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const config = JSON.parse(readFileSync('scripts/cws-config.json', 'utf8'));
+          for (const key of ['projectId', 'serviceAccount', 'workloadIdentityProvider']) {
+            appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${config[key]}\n`);
+          }
+          NODE
+      - name: Authenticate with Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ steps.config.outputs.projectId }}
+          workload_identity_provider: ${{ steps.config.outputs.workloadIdentityProvider }}
+          service_account: ${{ steps.config.outputs.serviceAccount }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          create_credentials_file: false
+      - name: Run store operation
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          CWS_MODE: ${{ inputs.mode }}
+        run: npm run store:release

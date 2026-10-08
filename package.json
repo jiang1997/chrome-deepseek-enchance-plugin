@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "init:crx-key": "node scripts/init-crx-key.mjs",
     "pack:zip": "npm run build && node scripts/pack-zip.mjs",
+    "store:release": "node scripts/publish-cws.mjs",
     "pack:crx": "npm run build && node scripts/pack-crx.mjs"
   },
   "devDependencies": {

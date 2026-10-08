@@ -86,6 +86,8 @@ Verified so far: real-page quote flow and English UI. Not yet fully covered: eve
 
 Store listing sources, screenshots, and release steps: `store-assets/README.md`.
 
+Automated store upload and review submission: [GitHub Actions publishing guide](store-assets/automated-publishing.md).
+
 ## Optional local CRX
 
 For managed or automated local distribution only; the Chrome Web Store does not need it:

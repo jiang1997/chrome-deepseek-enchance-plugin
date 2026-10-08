@@ -8,3 +8,5 @@ dist/
 /artifacts/
 # Artifacts that older scripts used to output at the repository root.
 /deepseek-enhancer.crx
+# Temporary Google GitHub Actions credentials.
+gha-creds-*.json
