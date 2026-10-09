@@ -1,3 +1,5 @@
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/deepseek-enhancer/eaenmoclonobobodnhnnakgbiafdcide)**
+
 <p align="center">
   <img src="icons/source.svg" width="96" height="96" alt="DeepSeek Enhancer icon: white quotation marks on a blue rounded square">
 </p>
