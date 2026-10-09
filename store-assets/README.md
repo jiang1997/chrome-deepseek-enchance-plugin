@@ -24,6 +24,8 @@ Upload source for the Chrome Web Store item. Keep paths stable; the dashboard re
 
 ## Release steps
 
+Automated upload and submission via GitHub Actions: [automated publishing](automated-publishing.md).
+
 ```sh
 npm install
 npm test

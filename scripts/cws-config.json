@@ -1,0 +1,8 @@
+{
+  "projectId": "polar-ensign-511009-f2",
+  "projectNumber": "1086154365812",
+  "serviceAccount": "chrome-webstore-publisher@polar-ensign-511009-f2.iam.gserviceaccount.com",
+  "publisherId": "751f873b-141b-480e-babb-b68958e382cd",
+  "extensionId": "eaenmoclonobobodnhnnakgbiafdcide",
+  "workloadIdentityProvider": "projects/1086154365812/locations/global/workloadIdentityPools/chrome-webstore/providers/github"
+}

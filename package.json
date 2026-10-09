@@ -1,6 +1,6 @@
 {
   "name": "deepseek-enhancer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "MIT",
   "description": "DeepSeek web enhancement extension: quote selections into the composer (Manifest V3)",
@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "init:crx-key": "node scripts/init-crx-key.mjs",
     "pack:zip": "npm run build && node scripts/pack-zip.mjs",
+    "store:release": "node scripts/publish-cws.mjs",
     "pack:crx": "npm run build && node scripts/pack-crx.mjs"
   },
   "devDependencies": {

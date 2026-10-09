@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DeepSeek Enhancer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Select text in a DeepSeek response and quote it into the composer to keep asking (runs locally, uploads nothing).",
   "icons": {
     "16": "icons/icon16.png",
