@@ -58,7 +58,7 @@ try {
   await page.locator('[data-dse-tree] .node[data-id="5"]').click();
   assert.match(await page.locator('[data-dse-tree] .preview-text').textContent(), /<script>/);
   assert.equal(await page.evaluate(() => window.bad), undefined);
-  assert.equal(await page.locator('[data-dse-tree] .preview-action').isDisabled(), true);
+  assert.match(await page.locator('[data-dse-tree] .preview-label').textContent(), /Other branches/);
   await page.getByRole('searchbox', { name: 'Search conversation messages' }).fill('closure');
   assert.equal(await page.locator('[data-dse-tree] .node.match').count(), 2);
   await page.getByRole('searchbox', { name: 'Search conversation messages' }).fill('');

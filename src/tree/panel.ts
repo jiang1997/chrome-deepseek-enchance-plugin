@@ -34,7 +34,7 @@ export class TreePanel {
         <header><div class="title-row"><h2>Conversation tree</h2><div class="tools"><button class="icon-button refresh" type="button" aria-label="Refresh conversation tree" title="Refresh">↻</button><button class="icon-button close" type="button" aria-label="Close conversation tree">×</button></div></div>
           <input type="search" placeholder="Search messages…" aria-label="Search conversation messages"><div class="legend"><span>You</span><span>DeepSeek</span><span>Other branches</span></div></header>
         <p class="status" role="status" aria-live="polite"></p><div class="viewport"><div class="drawing"></div></div>
-        <div class="preview" hidden><div class="preview-label"></div><p class="preview-text"></p><button class="preview-action" type="button">Jump to message</button></div>
+        <div class="preview" hidden><div class="preview-label"></div><p class="preview-text"></p></div>
         <footer><span class="count"></span><span>Hover to preview · Click to jump</span></footer>
       </section>`;
     this.shadow.append(root); document.body.append(this.host);
@@ -42,7 +42,6 @@ export class TreePanel {
     this.el<HTMLButtonElement>('.close').onclick = () => this.setOpen(false);
     this.el<HTMLButtonElement>('.refresh').onclick = () => void this.refresh(false, true);
     this.el<HTMLInputElement>('input').oninput = () => this.render();
-    this.el<HTMLButtonElement>('.preview-action').onclick = () => { if (this.selected) void this.jump(this.selected); };
     this.shadow.addEventListener('keydown', this.onKey);
     window.addEventListener('scroll', this.onScroll, { capture: true, passive: true });
     this.themeQuery.addEventListener('change', this.syncTheme);
@@ -156,8 +155,6 @@ export class TreePanel {
     const accessible = activePath(this.tree).includes(id) || messageItems().some(e => e.getAttribute(MESSAGE_ITEM_ATTR) === id);
     this.el('.preview-label').textContent = `${node.role === 'user' ? 'Your message' : 'DeepSeek response'}${accessible ? '' : ' · Other branches'}`;
     this.el('.preview-text').textContent = node.content || 'Message is being generated…';
-    const button = this.el<HTMLButtonElement>('.preview-action'); button.disabled = !accessible;
-    button.textContent = accessible ? 'Jump to message' : 'Switch to this branch on the page first';
   }
   private async jump(id: string): Promise<void> {
     if (!this.tree.nodes.has(id)) return;
