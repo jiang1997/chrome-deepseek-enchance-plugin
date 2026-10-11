@@ -1,3 +1,16 @@
+/* Explicit page themes override the system preference, including live switches. */
+.dse-popup,
+:is(html, body).light .dse-popup {
+  --dse-surface: #fff;
+  --dse-text: #1f2937;
+  --dse-border: rgba(127, 127, 127, 0.35);
+  --dse-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+  --dse-button: #2563eb;
+  --dse-button-hover: #1d4ed8;
+  --dse-close-hover: rgba(127, 127, 127, 0.15);
+  --dse-color-scheme: light;
+}
+
 /* Quote prompt above the DeepSeek Enhancer composer. */
 .dse-popup {
   all: initial;
@@ -9,16 +22,16 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 8px 10px;
-  border: 1px solid rgba(127, 127, 127, 0.35);
+  border: 1px solid var(--dse-border);
   border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+  background: var(--dse-surface);
+  box-shadow: var(--dse-shadow);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-size: 13px;
   line-height: 1.4;
-  color: #1f2937;
-  color-scheme: light dark;
+  color: var(--dse-text);
+  color-scheme: var(--dse-color-scheme);
 }
 
 .dse-popup-preview {
@@ -36,7 +49,7 @@
   box-sizing: border-box;
   padding: 5px 12px;
   border-radius: 6px;
-  background: #2563eb;
+  background: var(--dse-button);
   color: #fff;
   font-size: 13px;
   line-height: 1.4;
@@ -47,7 +60,7 @@
 }
 
 .dse-popup-btn:hover {
-  background: #1d4ed8;
+  background: var(--dse-button-hover);
 }
 
 .dse-popup-btn:focus-visible {
@@ -76,7 +89,7 @@
 }
 
 .dse-popup-close:hover {
-  background: rgba(127, 127, 127, 0.15);
+  background: var(--dse-close-hover);
 }
 
 .dse-popup-close:focus-visible {
@@ -90,16 +103,27 @@
   font-size: 12px;
 }
 
+/* Fallback when the host page has no explicit theme. */
 @media (prefers-color-scheme: dark) {
   .dse-popup {
-    background: #1f2937;
-    color: #f9fafb;
-    border-color: rgba(255, 255, 255, 0.2);
+    --dse-surface: #1f2937;
+    --dse-text: #f9fafb;
+    --dse-border: rgba(255, 255, 255, 0.2);
+    --dse-shadow: 0 4px 16px rgba(0, 0, 0, 0.32);
+    --dse-button: #3b82f6;
+    --dse-button-hover: #2563eb;
+    --dse-close-hover: rgba(255, 255, 255, 0.12);
+    --dse-color-scheme: dark;
   }
-  .dse-popup-btn {
-    background: #3b82f6;
-  }
-  .dse-popup-btn:hover {
-    background: #2563eb;
-  }
+}
+
+:is(html, body).dark .dse-popup {
+  --dse-surface: #1f2937;
+  --dse-text: #f9fafb;
+  --dse-border: rgba(255, 255, 255, 0.2);
+  --dse-shadow: 0 4px 16px rgba(0, 0, 0, 0.32);
+  --dse-button: #3b82f6;
+  --dse-button-hover: #2563eb;
+  --dse-close-hover: rgba(255, 255, 255, 0.12);
+  --dse-color-scheme: dark;
 }

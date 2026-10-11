@@ -33,6 +33,8 @@ When the selection sits inside a conversation message, the quote also records wh
 
 Role is read from the page's message content classes. Ordinals are counted in DOM order only when the virtual list explicitly renders from the first message; message IDs are never treated as positions. When the ordinal cannot be determined, the label contains only `AI` or `You`. Selections spanning multiple messages, or with an unknown role, fall back to plain `“selected text”`.
 
+The quote prompt follows DeepSeek’s light/dark page theme, including theme switches while a quote is pending. If the page has no explicit theme, it follows the system color preference.
+
 ## Screenshots
 
 | 1. Select & Quote | 2. Ask a Follow-up |
