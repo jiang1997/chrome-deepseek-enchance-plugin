@@ -17,12 +17,12 @@ Select text in a DeepSeek response and quote it into the composer to keep asking
 ## How it works
 
 1. Select text in a response on `https://chat.deepseek.com/`.
-2. A prompt matching the composer's width appears directly above the composer, with a saved preview, a Quote button, and a × close button.
-3. Click the composer and write your follow-up. Clearing the selection or clicking elsewhere keeps the pending quote; a new valid selection replaces it.
-4. Click Quote. The saved text is appended to your current draft as `“selected text”`, with the cursor after the quote. The prompt closes after a successful insertion; failures keep the preview for retry.
-5. Keep typing, edit the quote, and send the message yourself. Existing draft text is preserved. Click × or press Escape to discard a pending quote without changing your draft.
+2. A prompt matching the composer's width appears directly above the composer, with a selection preview and a Quote button.
+3. Keep the text selected and click Quote. Clearing the selection (including clicking elsewhere or focusing the composer) immediately closes the prompt and discards the pending quote. A new valid selection replaces the preview.
+4. The selected text is appended to your current draft as `“selected text”`, with the cursor after the quote. The prompt closes after a successful insertion; insertion failures show a temporary hint in place of the preview. Select the text again to retry.
+5. Keep typing, edit the quote, and send the message yourself. Existing draft text is preserved. Press Escape to discard a pending quote without changing your draft.
 
-The preview is retained when switching browser tabs or when the composer temporarily leaves the viewport, and returns when the composer is visible again. Switching conversations or refreshing the page clears pending quotes.
+While the selection remains active, the preview is temporarily hidden when switching browser tabs or when the composer leaves the viewport, and returns when the composer is visible again. Switching conversations or refreshing the page clears pending quotes.
 
 When the selection sits inside a conversation message, the quote also records where it came from, so the model can tell your words from its own:
 
@@ -76,9 +76,9 @@ Then use **Load unpacked** in `chrome://extensions` and select the generated `di
 - Click Quote. The composer appends the labelled quote; the cursor stays after it.
 - Quoting your own earlier message labels it as `user #N`.
 - Existing draft text stays intact. You can keep typing, edit, and send manually.
-- Clearing the selection, clicking elsewhere, and editing the draft keep the pending preview. Click × or press Escape to dismiss it.
+- Clearing or collapsing the selection immediately closes the prompt without changing the draft. Press Escape to dismiss it.
 - Scrolling and resizing keep the prompt aligned; it returns after the composer comes back into view. Changing chats clears it.
-- Selecting text inside the composer does not replace a pending quote. Selections over 5,000 characters show a hint and preserve any previous preview.
+- Selecting text inside the composer clears the pending quote. Selections over 5,000 characters discard the previous quote and show a temporary hint.
 
 `fixtures/mock-chat.html` provides a mock conversation for local checks. `npm run inspect:deepseek` runs a read-only diagnostic against the live DeepSeek page (reachability plus composer candidates); it loads no extension and asserts no quote behavior.
 

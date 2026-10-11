@@ -82,7 +82,7 @@ export function init(): void {
   }
 
   /**
-   * Discard pending content only on dismissal, success, or conversation/page navigation.
+   * Discard pending content on selection cancellation, dismissal, success, or navigation.
    * Keep the last observed selection so dismissal does not immediately reopen the prompt.
    */
   function resetQuoteState(): void {
@@ -114,6 +114,11 @@ export function init(): void {
       popup.reposition();
       return;
     }
+    if (!sameSelection(selectionIdentity(window.getSelection()), lastSelection)) {
+      lastSelection = null;
+      hidePopup();
+      return;
+    }
     if (document.hidden) {
       popup.suspend();
       return;
@@ -131,8 +136,14 @@ export function init(): void {
   function maybeShowPopup(): void {
     if (syncConversation() || document.hidden) return;
     const sel = window.getSelection();
+    const validation = validateSelection(sel);
+    if (!validation.ok) {
+      lastSelection = null;
+      hidePopup();
+      if (validation.reason !== "too-long") return;
+    }
     // Cancel a superseded quote immediately, before a lookup queued ahead of our frame settles.
-    if (!sameSelection(selectionIdentity(sel), lastSelection) && validateSelection(sel).ok) {
+    if (!sameSelection(selectionIdentity(sel), lastSelection) && validation.ok) {
       cancelPendingQuote();
     }
     cancelPendingFrame();
@@ -143,14 +154,11 @@ export function init(): void {
       const identity = selectionIdentity(selection);
       const result = validateSelection(selection);
       if (!result.ok) {
-        if (!identity) lastSelection = null;
+        lastSelection = null;
+        hidePopup();
         if (result.reason === "too-long") {
-          const message = `Up to ${MAX_SELECTION_LENGTH} characters can be quoted`;
-          if (state.snapshot) popup.showNotice(message);
-          else {
-            const composer = findComposer();
-            if (composer) popup.showTransientMessage(composer, message);
-          }
+          const composer = findComposer();
+          if (composer) popup.showTransientMessage(composer, `Up to ${MAX_SELECTION_LENGTH} characters can be quoted`);
         }
         return;
       }
@@ -168,7 +176,7 @@ export function init(): void {
     // A click may land while a previous lookup is still running; ignore it.
     if (quoting) return;
     const snapshot = state.snapshot;
-    if (!snapshot) {
+    if (!snapshot || !sameSelection(selectionIdentity(window.getSelection()), lastSelection)) {
       hidePopup();
       return;
     }
@@ -188,17 +196,22 @@ export function init(): void {
       if (syncConversation() || controller.signal.aborted || document.hidden) return;
       // A newer selection replaced this one in the meantime; drop the stale quote.
       if (state.snapshot !== snapshot) return;
+      if (!sameSelection(selectionIdentity(window.getSelection()), lastSelection)) {
+        lastSelection = null;
+        hidePopup();
+        return;
+      }
       // Re-confirm right before writing: it may have been removed or disabled in the meantime.
       if (!composer || !isComposerEditable(composer)) {
-        refreshPopup();
-        popup.showNotice("Composer unavailable, please try again");
+        hidePopup();
         return;
       }
       state.composer = composer;
       popup.setAnchor(composer);
       const ok = insertIntoComposer(composer, quote);
       if (!ok) {
-        popup.showNotice("Insert failed, please try again");
+        hidePopup();
+        popup.showTransientMessage(composer, "Insert failed, please try again");
         return;
       }
       hidePopup();

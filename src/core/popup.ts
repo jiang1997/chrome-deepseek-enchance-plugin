@@ -27,7 +27,6 @@ export class QuotePopup {
   private root: HTMLDivElement | null = null;
   private preview: HTMLSpanElement | null = null;
   private button: HTMLButtonElement | null = null;
-  private notice: HTMLSpanElement | null = null;
   private hintTimer: number | null = null;
   private anchor: HTMLElement | null = null;
   private anchorObserver: ResizeObserver | null = null;
@@ -63,25 +62,11 @@ export class QuotePopup {
     btn.addEventListener("pointerdown", (e) => e.preventDefault());
     btn.addEventListener("click", () => this.callbacks.onQuote());
 
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "dse-popup-close";
-    close.textContent = "×";
-    close.setAttribute("aria-label", "Dismiss quote");
-    close.title = "Dismiss quote (Escape)";
-    close.addEventListener("pointerdown", (e) => e.preventDefault());
-    close.addEventListener("click", () => this.hide());
-
-    const notice = document.createElement("span");
-    notice.className = "dse-popup-notice";
-    notice.setAttribute("role", "status");
-    notice.hidden = true;
-    root.append(preview, btn, close, notice);
+    root.append(preview, btn);
     document.body.appendChild(root);
     this.root = root;
     this.preview = preview;
     this.button = btn;
-    this.notice = notice;
     return root;
   }
 
@@ -90,7 +75,6 @@ export class QuotePopup {
     if (this.hintTimer !== null) window.clearTimeout(this.hintTimer);
     this.hintTimer = null;
     this.restoreLabel();
-    if (this.notice) this.notice.hidden = true;
     this.anchorObserver?.disconnect();
     this.anchor = anchor;
     if (this.preview) this.preview.textContent = badge ? `Selected ${badge}: ${text}` : `Selected: ${text}`;
@@ -165,7 +149,6 @@ export class QuotePopup {
     this.root = null;
     this.preview = null;
     this.button = null;
-    this.notice = null;
     this.visible = false;
     this.open = false;
     this.anchor = null;
@@ -186,21 +169,7 @@ export class QuotePopup {
     return !!el && !!el.closest(`[${POPUP_ATTR}]`);
   }
 
-  /** Display feedback alongside the saved preview without discarding pending content. */
-  showNotice(msg: string, duration = 1600): void {
-    if (!this.notice) return;
-    if (this.hintTimer !== null) window.clearTimeout(this.hintTimer);
-    this.notice.textContent = msg;
-    this.notice.hidden = false;
-    this.reposition();
-    this.hintTimer = window.setTimeout(() => {
-      this.hintTimer = null;
-      if (this.notice) this.notice.hidden = true;
-      this.reposition();
-    }, duration);
-  }
-
-  /** Transient hint (e.g. "Message composer not found"), restores after 1.6s. */
+  /** Transient hint displayed in place of the preview, closes after 1.6s. */
   showTransientMessage(anchor: HTMLElement, msg: string, duration = 1600): void {
     this.show(anchor, msg);
     if (!this.button || !this.preview) return;

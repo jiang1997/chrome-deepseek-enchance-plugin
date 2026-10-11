@@ -89,6 +89,7 @@ afterEach(() => {
   content?.destroy();
   content = undefined;
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("content script async state management", () => {
@@ -238,36 +239,44 @@ describe("content script async state management", () => {
     expect(quote).toBe("“Selected sentence.”\n\n");
   });
 
-  it("retains the preview after insertion failure and allows retry", () => {
+  it("shows a temporary insertion failure hint in place of the preview", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const composer = mountComposer();
     showPopupWith(composer);
     mocks.insertIntoComposer.mockReturnValue(false);
     getButton().click();
     expect(getPopup().style.display).toBe("flex");
-    expect(getPopup().textContent).toContain("Selected sentence.");
+    expect(getPopup().textContent).not.toContain("Selected sentence.");
     expect(getPopup().textContent).toContain("Insert failed");
-    expect(getButton().disabled).toBe(false);
+    expect(getButton().disabled).toBe(true);
+    expect(getPopup().children).toHaveLength(2);
+    vi.advanceTimersByTime(1600);
+    expect(getPopup().style.display).toBe("none");
+    window.getSelection()!.removeAllRanges();
+    document.dispatchEvent(new Event("selectionchange"));
+    selectText(document.querySelector("p")!);
+    showPopup();
     mocks.insertIntoComposer.mockReturnValue(true);
     getButton().click();
     expect(mocks.insertIntoComposer).toHaveBeenCalledTimes(2);
     expect(getPopup().style.display).toBe("none");
   });
 
-  it("cancels an in-flight quote when × is clicked", async () => {
+  it("cancels an in-flight quote when Escape is pressed", async () => {
     const composer = mountComposer();
     const deferred = createDeferred<HTMLElement | null>();
     mocks.findComposerWithRetry.mockReturnValue(deferred.promise);
     showPopupWith(composer);
     composer.remove();
     getButton().click();
-    document.querySelector<HTMLButtonElement>(".dse-popup-close")!.click();
+    document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape" }));
     deferred.resolve(mountComposer());
     await flushAsync();
     expect(mocks.insertIntoComposer).not.toHaveBeenCalled();
     expect(getPopup().style.display).toBe("none");
   });
 
-  it("keeps a pending request when the selection collapses during lookup", async () => {
+  it("cancels a pending request immediately when the selection is cleared during lookup", async () => {
     const composer = mountComposer();
     const deferred = createDeferred<HTMLElement | null>();
     mocks.findComposerWithRetry.mockReturnValue(deferred.promise);
@@ -276,10 +285,26 @@ describe("content script async state management", () => {
     getButton().click();
     window.getSelection()!.removeAllRanges();
     document.dispatchEvent(new Event("selectionchange"));
-    raf.flush();
+    expect(getPopup().style.display).toBe("none");
+    expect(mocks.findComposerWithRetry.mock.calls[0][1].aborted).toBe(true);
     deferred.resolve(mountComposer());
     await flushAsync();
-    expect(mocks.insertIntoComposer).toHaveBeenCalledTimes(1);
+    raf.flush();
+    expect(mocks.insertIntoComposer).not.toHaveBeenCalled();
+  });
+
+  it("does not insert a stale quote when selection cancellation has not dispatched an event yet", async () => {
+    const composer = mountComposer();
+    const deferred = createDeferred<HTMLElement | null>();
+    mocks.findComposerWithRetry.mockReturnValue(deferred.promise);
+    showPopupWith(composer);
+    composer.remove();
+    getButton().click();
+    window.getSelection()!.removeAllRanges();
+    deferred.resolve(mountComposer());
+    await flushAsync();
+    expect(mocks.insertIntoComposer).not.toHaveBeenCalled();
+    expect(getPopup().style.display).toBe("none");
   });
 
   it("cancels an in-flight quote when the user switches tabs but preserves the preview", async () => {

@@ -93,9 +93,6 @@ describe("content script event flow", () => {
     const badge = role === "user" ? "user #1" : "assistant #1";
     const text = role === "user" ? "Question" : "Answer";
     expect(getPopup().textContent).toContain(`Selected ${badge}: ${text}`);
-    window.getSelection()!.removeAllRanges();
-    document.dispatchEvent(new Event("selectionchange"));
-    raf.flush();
     getButton().click();
     expect(composer.value).toBe(`draft\n[Quote · ${badge}]\n“${text}”\n\n`);
   });
@@ -154,7 +151,7 @@ describe("content script event flow", () => {
     expect(document.querySelectorAll("[data-dse-popup]").length).toBe(1);
   });
 
-  it("retains the quote after clearing the selection and editing the draft", () => {
+  it("discards the quote after clearing the selection without changing the draft", () => {
     const composer = mountComposer();
     mountSelection();
     showPopup();
@@ -167,17 +164,45 @@ describe("content script event flow", () => {
     raf.flush();
     composer.focus();
     composer.value = "My follow-up";
-    expect(getPopup().style.display).toBe("flex");
-    expect(getPopup().textContent).toContain("Selected sentence.");
+    expect(getPopup().style.display).toBe("none");
     getButton().click();
-    expect(composer.value).toBe("My follow-up\n“Selected sentence.”\n\n");
+    expect(composer.value).toBe("My follow-up");
   });
 
-  it("dismisses with × without reopening the unchanged selection", () => {
+  it("hides immediately when keyboard selection collapses and allows reselecting the same text", () => {
     const composer = mountComposer("draft");
     mountSelection();
     showPopup();
-    document.querySelector<HTMLButtonElement>(".dse-popup-close")!.click();
+    window.getSelection()!.collapseToEnd();
+    document.dispatchEvent(new Event("selectionchange"));
+    expect(getPopup().style.display).toBe("none");
+    window.dispatchEvent(new Event("scroll"));
+    expect(getPopup().style.display).toBe("none");
+    selectText(document.querySelector("p")!);
+    showPopup();
+    expect(getPopup().style.display).toBe("flex");
+    getButton().dispatchEvent(new Event("pointerdown", { bubbles: true, cancelable: true }));
+    getButton().click();
+    expect(composer.value).toBe("draft\n“Selected sentence.”\n\n");
+  });
+
+  it("does not restore a cleared selection after switching tabs", () => {
+    mountComposer();
+    mountSelection();
+    showPopup();
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.getSelection()!.removeAllRanges();
+    hidden.mockReturnValue(false);
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(getPopup().style.display).toBe("none");
+  });
+
+  it("dismisses with Escape without reopening the unchanged selection", () => {
+    const composer = mountComposer("draft");
+    mountSelection();
+    showPopup();
+    document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape" }));
     expect(getPopup().style.display).toBe("none");
     document.dispatchEvent(new Event("selectionchange"));
     showPopup();
@@ -189,7 +214,7 @@ describe("content script event flow", () => {
     expect(getPopup().style.display).toBe("flex");
   });
 
-  it("ignores editable selections and retains the saved source", () => {
+  it("discards the source when selecting text in the composer", () => {
     const composer = mountComposer();
     mountSelection("Original response.");
     showPopup();
@@ -199,25 +224,25 @@ describe("content script event flow", () => {
     document.body.appendChild(editable);
     selectText(editable);
     showPopup();
-    expect(getPopup().textContent).toContain("Original response.");
+    expect(getPopup().style.display).toBe("none");
     getButton().click();
-    expect(composer.value).toBe("“Original response.”\n\n");
+    expect(composer.value).toBe("");
   });
 
-  it("reports an overlong selection without replacing the pending quote", () => {
+  it("reports an overlong selection and discards the previous quote", () => {
     const composer = mountComposer();
     mountSelection("Original response.");
     showPopup();
     mountSelection("x".repeat(5001));
     showPopup();
-    expect(getPopup().textContent).toContain("Original response.");
+    expect(getPopup().textContent).not.toContain("Original response.");
     expect(getPopup().textContent).toContain("Up to 5000 characters");
-    expect(getButton().disabled).toBe(false);
+    expect(getButton().disabled).toBe(true);
     getButton().click();
-    expect(composer.value).toBe("“Original response.”\n\n");
+    expect(composer.value).toBe("");
   });
 
-  it("keeps the preview after temporary feedback expires", () => {
+  it("hides the overlong selection feedback after it expires", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     mountComposer();
     mountSelection("Original response.");
@@ -225,10 +250,7 @@ describe("content script event flow", () => {
     mountSelection("x".repeat(5001));
     showPopup();
     vi.advanceTimersByTime(1600);
-    expect(document.querySelector<HTMLElement>(".dse-popup-notice")!.hidden).toBe(true);
-    expect(getPopup().style.display).toBe("flex");
-    expect(getPopup().textContent).toContain("Original response.");
-    expect(getButton().disabled).toBe(false);
+    expect(getPopup().style.display).toBe("none");
   });
 
   it("dismisses immediately through the Navigation API and removes its listener on teardown", () => {
@@ -259,7 +281,6 @@ describe("content script event flow", () => {
     stubRect(composer, { top: 900, bottom: 1000 });
     window.dispatchEvent(new Event("scroll"));
     expect(getPopup().style.display).toBe("none");
-    window.getSelection()!.removeAllRanges();
     stubRect(composer);
     window.dispatchEvent(new Event("scroll"));
     expect(getPopup().style.display).toBe("flex");
@@ -286,7 +307,6 @@ describe("content script event flow", () => {
     const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
     document.dispatchEvent(new Event("visibilitychange"));
     expect(getPopup().style.display).toBe("none");
-    window.getSelection()!.removeAllRanges();
     hidden.mockReturnValue(false);
     document.dispatchEvent(new Event("visibilitychange"));
     expect(getPopup().style.display).toBe("flex");
@@ -298,7 +318,6 @@ describe("content script event flow", () => {
     const composer = mountComposer();
     mountSelection();
     showPopup();
-    window.getSelection()!.removeAllRanges();
     composer.remove();
     window.dispatchEvent(new Event("scroll"));
     expect(getPopup().style.display).toBe("none");
