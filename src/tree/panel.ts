@@ -1,6 +1,7 @@
 import styles from './tree.css?inline';
-import { activePath, layoutTree, parseHistory, type ChatTree } from './model';
-import { conversationId, jumpToMessage, messageItems, renderedTree, requestHistory } from './deepseek';
+import { activePath, layoutTree, type ChatTree } from './model';
+import { conversationId, jumpToMessage, messageItems, renderedTree } from './deepseek';
+import { conversationHistory } from './history-service';
 import { MESSAGE_ITEM_ATTR } from '../core/message-context';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -39,7 +40,7 @@ export class TreePanel {
     this.shadow.append(root); document.body.append(this.host);
     this.el<HTMLButtonElement>('.toggle').onclick = () => this.setOpen(true);
     this.el<HTMLButtonElement>('.close').onclick = () => this.setOpen(false);
-    this.el<HTMLButtonElement>('.refresh').onclick = () => void this.refresh();
+    this.el<HTMLButtonElement>('.refresh').onclick = () => void this.refresh(false, true);
     this.el<HTMLInputElement>('input').oninput = () => this.render();
     this.el<HTMLButtonElement>('.preview-action').onclick = () => { if (this.selected) void this.jump(this.selected); };
     this.shadow.addEventListener('keydown', this.onKey);
@@ -72,6 +73,7 @@ export class TreePanel {
   private checkNavigation = (): void => {
     if (this.path === location.pathname) return;
     this.path = location.pathname; this.controller?.abort(); this.controller = null;
+    conversationHistory.syncConversation(conversationId());
     this.jumpController?.abort(); this.selected = this.viewing = null;
     this.tree = { nodes: new Map(), roots: [], currentId: null, complete: false };
     this.el<HTMLInputElement>('input').value = ''; this.el('.preview').hidden = true;
@@ -84,7 +86,7 @@ export class TreePanel {
     if (open) { this.el<HTMLInputElement>('input').focus(); void this.refresh(); }
     else { this.controller?.abort(); this.controller = null; this.jumpController?.abort(); this.el<HTMLButtonElement>('.toggle').focus(); }
   }
-  private async refresh(quiet = false): Promise<void> {
+  private async refresh(quiet = false, force = false): Promise<void> {
     if (this.controller || !this.open) return;
     const controller = new AbortController(); this.controller = controller;
     const path = location.pathname;
@@ -95,9 +97,9 @@ export class TreePanel {
         this.tree = renderedTree();
         this.status(this.tree.nodes.size ? 'Rendered messages only; branch relationships are unknown.' : 'Open a DeepSeek conversation to view its message tree.');
       } else {
-        const raw = await requestHistory(id, controller.signal);
+        const tree = await conversationHistory.get(id, controller.signal, { force: quiet || force });
         if (controller.signal.aborted || location.pathname !== path) return;
-        this.tree = parseHistory(raw);
+        this.tree = tree;
         this.status('Full conversation tree · Gray nodes preview other branches');
       }
       this.render(); this.trackReading();

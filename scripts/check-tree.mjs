@@ -30,6 +30,26 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('https://chat.deepseek.com/a/chat/s/abcdef-1234');
   await page.evaluate(() => localStorage.setItem('userToken', JSON.stringify({ value: 'test-only-token' })));
+  // Quote from a partial virtual window before opening the tree: history supplies #2.
+  const originalMessages = await page.locator('.ds-virtual-list-visible-items').innerHTML();
+  await page.evaluate(() => {
+    for (const id of ['1', '2']) document.querySelector(`[data-virtual-list-item-key="${id}"]`).remove();
+    document.querySelector('.ds-virtual-list-visible-items').style.setProperty('--dsl-virtual-list-transform-y', '500px');
+    const range = document.createRange();
+    range.selectNodeContents(document.querySelector('[data-virtual-list-item-key="4"] .ds-markdown'));
+    window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+  });
+  await page.locator('.dse-popup-preview').filter({ hasText: 'Selected assistant #2:' }).waitFor();
+  assert.equal(requests, 1);
+  await page.getByRole('button', { name: 'Quote', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#composer').value.includes('[Quote · assistant #2]'));
+  await page.evaluate(html => {
+    window.getSelection().removeAllRanges();
+    document.querySelector('.ds-virtual-list-visible-items').innerHTML = html;
+    document.querySelector('.ds-virtual-list-visible-items').style.setProperty('--dsl-virtual-list-transform-y', '0px');
+    document.querySelector('#composer').value = '';
+  }, originalMessages);
   await page.getByRole('button', { name: 'Conversation tree', exact: true }).click();
   await page.locator('[data-dse-tree] .node').nth(4).waitFor();
   assert.equal(await page.locator('[data-dse-tree] .node').count(), 5);
@@ -67,7 +87,7 @@ try {
   await page.getByRole('searchbox', { name: 'Search conversation messages' }).press('Escape');
   assert.equal(await page.getByRole('button', { name: 'Conversation tree', exact: true }).isVisible(), true);
   assert.deepEqual(errors, []);
-  console.log('Production extension check passed: history bridge, branches, search, preview, navigation, fallback, themes, keyboard and message jump.');
+  console.log('Production extension check passed: history bridge, quote ordinals, shared cache, branches, search, preview, navigation, fallback, themes, keyboard and message jump.');
 } finally {
   await context.close(); await rm(profile, { recursive: true, force: true });
 }

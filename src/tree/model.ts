@@ -1,5 +1,6 @@
 export type TreeNode = { id: string; parentId: string | null; children: string[]; role: 'user' | 'assistant'; content: string };
-export type ChatTree = { nodes: Map<string, TreeNode>; roots: string[]; currentId: string | null; complete: boolean };
+export type HistoryLink = { parentId: string | null | undefined; role: 'user' | 'assistant' | 'system' | 'unknown' };
+export type ChatTree = { nodes: Map<string, TreeNode>; roots: string[]; currentId: string | null; complete: boolean; ancestry?: Map<string, HistoryLink> };
 
 /** Normalize the history response; malformed parents must never cause recursive loops. */
 export function parseHistory(raw: unknown): ChatTree {
@@ -7,11 +8,16 @@ export function parseHistory(raw: unknown): ChatTree {
   if (!Array.isArray(data?.chat_messages)) throw new Error('Could not read conversation history.');
   const nodes = new Map<string, TreeNode>();
   const parents = new Map<string, string | null>();
+  const ancestry = new Map<string, HistoryLink>();
   for (const msg of data.chat_messages) {
     if (msg.message_id == null) continue;
     const id = String(msg.message_id);
     const parentId = msg.parent_id == null || String(msg.parent_id) === '0' ? null : String(msg.parent_id);
     parents.set(id, parentId);
+    ancestry.set(id, {
+      parentId: Object.prototype.hasOwnProperty.call(msg, 'parent_id') ? parentId : undefined,
+      role: msg.role === 'USER' ? 'user' : msg.role === 'ASSISTANT' ? 'assistant' : msg.role === 'SYSTEM' ? 'system' : 'unknown',
+    });
     const role = msg.role === 'USER' ? 'user' : msg.role === 'ASSISTANT' ? 'assistant' : null;
     if (!role) continue;
     const fragments = Array.isArray(msg.fragments) ? msg.fragments as Array<Record<string, unknown>> : [];
@@ -43,7 +49,28 @@ export function parseHistory(raw: unknown): ChatTree {
     else roots.push(n.id);
   }
   const currentId = ancestor(data.chat_session?.current_message_id == null ? null : String(data.chat_session.current_message_id));
-  return { nodes, roots, currentId, complete: true };
+  return { nodes, roots, currentId, complete: true, ancestry };
+}
+
+/** Count the target's own branch using original parents, never repaired layout roots. */
+export function messageOrdinal(tree: ChatTree, messageId: string): { role: 'user' | 'assistant'; index: number; position: number } | null {
+  const links = tree.ancestry;
+  const target = links?.get(messageId);
+  if (!tree.complete || !links || !target || (target.role !== 'user' && target.role !== 'assistant')) return null;
+  let index = 0;
+  let position = 0;
+  let id: string | null = messageId;
+  const seen = new Set<string>();
+  while (id !== null) {
+    if (seen.has(id)) return null;
+    seen.add(id);
+    const link = links.get(id);
+    if (!link || link.parentId === undefined || link.role === 'unknown') return null;
+    if (link.role === target.role) index++;
+    if (link.role === 'user' || link.role === 'assistant') position++;
+    id = link.parentId;
+  }
+  return { role: target.role, index, position };
 }
 
 export function activePath(tree: ChatTree): string[] {

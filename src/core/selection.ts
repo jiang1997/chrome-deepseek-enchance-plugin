@@ -1,5 +1,5 @@
 /** Selection validation and snapshot (pure logic + thin DOM adapter). */
-import { resolveMessageContext, type MessageContext } from "./message-context";
+import { resolveMessageContext, findMessageItem, MESSAGE_ITEM_ATTR, type MessageContext } from "./message-context";
 
 export const MAX_SELECTION_LENGTH = 5000;
 
@@ -19,6 +19,8 @@ export type SelectionSnapshot = {
   rect: RectLike;
   /** Provenance of the message the selection lives in (role + ordinal). */
   context: MessageContext;
+  /** Exact message identity, only for a selection contained in one message. */
+  messageId?: string;
 };
 
 export type SelectionRejectReason =
@@ -92,7 +94,7 @@ export type ValidateResult =
   | { ok: false; reason: SelectionRejectReason };
 
 /**
- * Validate the current Selection and return an immutable snapshot on success (text + viewport rect).
+ * Validate the current Selection and snapshot its text, viewport rect and initial DOM provenance.
  * Note: callers should invoke this after rAF / event settling to avoid reading a stale selection.
  */
 export function validateSelection(sel: Selection | null): ValidateResult {
@@ -127,7 +129,8 @@ export function validateSelection(sel: Selection | null): ValidateResult {
   // Only label text contained in one message, independently of drag direction.
   // Multiple ranges or a common ancestor outside a message have no single source.
   const context = resolveMessageContext(sel.rangeCount === 1 ? range.commonAncestorContainer : null);
-  return { ok: true, snapshot: { text, rect, context } };
+  const messageId = sel.rangeCount === 1 ? findMessageItem(range.commonAncestorContainer)?.getAttribute(MESSAGE_ITEM_ATTR) ?? undefined : undefined;
+  return { ok: true, snapshot: { text, rect, context, messageId } };
 }
 
 /** Read and validate the current window selection; return null on failure. */

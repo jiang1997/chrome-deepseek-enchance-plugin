@@ -1,5 +1,5 @@
 /**
- * Resolve who wrote a selected message and its ordinal, from DeepSeek's conversation DOM.
+ * Resolve initial DOM provenance for a quote; history enrichment is handled by the enhancer.
  *
  * Signals used (verified against the live page):
  * - Every rendered message item carries `data-virtual-list-item-key`, a message ID

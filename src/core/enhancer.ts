@@ -3,6 +3,9 @@ import { validateSelection, MAX_SELECTION_LENGTH, type SelectionSnapshot } from 
 import { QuotePopup } from "./popup";
 import { formatQuote } from "./quote";
 import { describeMessageContext } from "./message-context";
+import { conversationHistory } from "../tree/history-service";
+import { conversationId } from "../tree/deepseek";
+import { messageOrdinal } from "../tree/model";
 import {
   findComposer,
   findComposerWithRetry,
@@ -66,6 +69,33 @@ export function init(): void {
   const navigation = (window as Window & { navigation?: EventTarget }).navigation;
   let quoteController: AbortController | null = null;
   let quoting = false;
+  let contextController: AbortController | null = null;
+  let contextTask: Promise<void> | null = null;
+
+  function cancelContext(): void {
+    contextController?.abort();
+    contextController = null;
+    contextTask = null;
+  }
+
+  function enrichContext(snapshot: SelectionSnapshot): void {
+    cancelContext();
+    const id = conversationId();
+    if (!id || !snapshot.messageId || snapshot.context.role === "unknown") return;
+    const controller = new AbortController();
+    const path = conversationPath;
+    contextController = controller;
+    contextTask = conversationHistory.get(id, controller.signal, { messageId: snapshot.messageId }).then(tree => {
+      if (controller.signal.aborted || state.snapshot !== snapshot || window.location.pathname !== path ||
+          !sameSelection(selectionIdentity(window.getSelection()), lastSelection)) return;
+      const context = messageOrdinal(tree, snapshot.messageId!);
+      if (!context || context.role !== snapshot.context.role) return;
+      snapshot.context = context;
+      popup.updatePreview(snapshot.text, describeMessageContext(context));
+    }).catch(() => {
+      // Keep the conservative DOM context if history is unavailable or malformed.
+    });
+  }
 
   function cancelPendingFrame(): void {
     if (pendingFrame !== null) {
@@ -90,6 +120,7 @@ export function init(): void {
     if (layoutFrame !== null) cancelAnimationFrame(layoutFrame);
     layoutFrame = null;
     cancelPendingQuote();
+    cancelContext();
     state.snapshot = null;
     state.composer = null;
   }
@@ -103,6 +134,7 @@ export function init(): void {
     const path = window.location.pathname;
     if (path === conversationPath) return false;
     conversationPath = path;
+    conversationHistory.syncConversation(conversationId());
     lastSelection = selectionIdentity(window.getSelection());
     hidePopup();
     return true;
@@ -145,6 +177,7 @@ export function init(): void {
     // Cancel a superseded quote immediately, before a lookup queued ahead of our frame settles.
     if (!sameSelection(selectionIdentity(sel), lastSelection) && validation.ok) {
       cancelPendingQuote();
+      cancelContext();
     }
     cancelPendingFrame();
     pendingFrame = requestAnimationFrame(() => {
@@ -168,6 +201,7 @@ export function init(): void {
       state.snapshot = result.snapshot;
       state.composer = findComposer();
       popup.show(state.composer, result.snapshot.text, describeMessageContext(result.snapshot.context));
+      enrichContext(result.snapshot);
     });
   }
 
@@ -186,8 +220,9 @@ export function init(): void {
     quoteController = controller;
     popup.setBusy(true);
 
-    const quote = formatQuote(snapshot.text, snapshot.context);
     try {
+      if (contextTask) await contextTask;
+      if (syncConversation() || controller.signal.aborted || document.hidden || state.snapshot !== snapshot) return;
       let composer = state.composer;
       if (!composer || !isComposerEditable(composer)) {
         composer = await findComposerWithRetry(RETRY_TIMEOUT_MS, controller.signal);
@@ -208,7 +243,7 @@ export function init(): void {
       }
       state.composer = composer;
       popup.setAnchor(composer);
-      const ok = insertIntoComposer(composer, quote);
+      const ok = insertIntoComposer(composer, formatQuote(snapshot.text, snapshot.context));
       if (!ok) {
         hidePopup();
         popup.showTransientMessage(composer, "Insert failed, please try again");

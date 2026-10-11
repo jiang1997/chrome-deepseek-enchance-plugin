@@ -31,7 +31,11 @@ When the selection sits inside a conversation message, the quote also records wh
 “A closure keeps the lexical environment it could access when it was created.”
 ```
 
-Role is read from the page's message content classes. Ordinals are counted in DOM order only when the virtual list explicitly renders from the first message; message IDs are never treated as positions. When the ordinal cannot be determined, the label contains only `AI` or `You`. Selections spanning multiple messages, or with an unknown role, fall back to plain `“selected text”`.
+Role is read from the page's message content classes. For a selection contained in one message, the extension loads the current chat history and follows that message's original parent chain to an explicit root. The ordinal counts messages of the same role along that branch, including the quoted message; alternative versions on sibling branches do not increase it. This works even when earlier bubbles have been unmounted by the virtual list, and does not depend on the history's current-node pointer.
+
+The quote preview appears immediately with DOM provenance, then updates when history resolves. Clicking Quote while history is loading waits for that lookup before inserting the labelled text. History and the conversation tree share an in-memory cache and pending request; a missing target triggers one refresh. Cancelling the selection or changing conversations prevents a delayed result from updating or inserting an old quote.
+
+Missing ancestors, cycles, unknown ancestor roles, or a history failure fall back to DOM counting, which is only trusted when the virtual list explicitly renders from the first message. If neither source can establish the ordinal, the label contains only `assistant` or `user`. Selections spanning multiple messages, or with an unknown role, fall back to plain `“selected text”`.
 
 The quote prompt follows DeepSeek’s light/dark page theme, including theme switches while a quote is pending. If the page has no explicit theme, it follows the system color preference.
 
@@ -39,7 +43,7 @@ The quote prompt follows DeepSeek’s light/dark page theme, including theme swi
 
 Click **Conversation tree** at the top right of a DeepSeek page to open a message tree. User messages are blue, DeepSeek replies green, and inactive branches gray. Hover or focus a node to preview its text; click a node on the current branch to scroll to and highlight that message. Search highlights matching nodes across all branches. The reading-position ring follows page scrolling, and the panel follows the page theme.
 
-The panel reads the current conversation's history from DeepSeek using the existing page login state, only while open. It refreshes every 15 seconds while the tab is visible, or when you click Refresh. No credentials or conversations are sent to the extension developer, and the credential remains in the page execution world. Conversation data stays in memory and is cleared on navigation or page reload.
+The panel and quote provenance share the current conversation's history from DeepSeek using the existing page login state. Opening the panel or selecting text within a known message can trigger a history request. It refreshes every 15 seconds while the tab is visible, or when you click Refresh. No credentials or conversations are sent to the extension developer, and the credential remains in the page execution world. Conversation data stays in memory and is cleared on navigation or page reload.
 
 If history cannot be read, the panel shows only currently rendered messages as separate nodes, with an explicit notice that their parent relationships are unknown. Other branches can be previewed, but automatic branch switching is not implemented; use DeepSeek's branch controls, then refresh the tree. Locating messages in a virtual list is best-effort and reports when a target cannot be mounted.
 
@@ -118,10 +122,10 @@ The private key at `keys/deepseek-enhancer.pem` is gitignored. Back it up; losin
 
 ## Privacy
 
-The content script runs only on `chat.deepseek.com`. The extension requests no tabs, storage, cookies, or additional host permissions. Selected text and the existing draft are processed locally for the quote feature. When you open the conversation tree, the page-world script reads the existing login token to request history from the same DeepSeek origin; the token is not passed to the isolated content script. The extension does not transmit this content to the developer or persist it in storage.
+The content script runs only on `chat.deepseek.com`. The extension requests no tabs, storage, cookies, or additional host permissions. Selected text and the existing draft are processed locally for the quote feature. When you open the conversation tree or select text within a known message, the page-world script reads the existing login token to request history from the same DeepSeek origin; the token is not passed to the isolated content script. The extension does not transmit this content to the developer or persist it in storage.
 
 Privacy policy: https://jiang1997.github.io/chrome-deepseek-enchance-plugin/privacy.html
 
 ## Limitations
 
-DeepSeek may change its composer or page structure. Dark mode and browser zoom still need full manual regression coverage. Message role detection depends on DeepSeek's message-list DOM; it degrades to an unlabelled quote if those hooks change. Ordinals are omitted when earlier messages are unmounted, a preceding role is unknown, or the virtual-list window offset is unavailable.
+DeepSeek may change its composer or page structure. Dark mode and browser zoom still need full manual regression coverage. Message role detection depends on DeepSeek's message-list DOM; it degrades to an unlabelled quote if those hooks change. Ordinals are omitted when history cannot establish a complete, known-role ancestor chain and the DOM fallback cannot count reliably.

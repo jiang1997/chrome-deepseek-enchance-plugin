@@ -77,7 +77,7 @@ export class QuotePopup {
     this.restoreLabel();
     this.anchorObserver?.disconnect();
     this.anchor = anchor;
-    if (this.preview) this.preview.textContent = badge ? `Selected ${badge}: ${text}` : `Selected: ${text}`;
+    this.updatePreview(text, badge);
     this.open = true;
     if (anchor) this.reposition();
     else this.suspend();
@@ -85,6 +85,11 @@ export class QuotePopup {
       this.anchorObserver = new ResizeObserver(() => this.reposition());
       this.anchorObserver.observe(anchor);
     }
+  }
+
+  /** Update provenance after history resolves without resetting focus or the busy button. */
+  updatePreview(text: string, badge = ""): void {
+    if (this.preview) this.preview.textContent = badge ? `Selected ${badge}: ${text}` : `Selected: ${text}`;
   }
 
   reposition(): void {
