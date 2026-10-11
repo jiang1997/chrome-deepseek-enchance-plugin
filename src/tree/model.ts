@@ -1,0 +1,76 @@
+export type TreeNode = { id: string; parentId: string | null; children: string[]; role: 'user' | 'assistant'; content: string };
+export type ChatTree = { nodes: Map<string, TreeNode>; roots: string[]; currentId: string | null; complete: boolean };
+
+/** Normalize the history response; malformed parents must never cause recursive loops. */
+export function parseHistory(raw: unknown): ChatTree {
+  const data = (raw as { data?: { biz_data?: { chat_messages?: Array<Record<string, unknown>>; chat_session?: { current_message_id?: unknown } } } })?.data?.biz_data;
+  if (!Array.isArray(data?.chat_messages)) throw new Error('Could not read conversation history.');
+  const nodes = new Map<string, TreeNode>();
+  const parents = new Map<string, string | null>();
+  for (const msg of data.chat_messages) {
+    if (msg.message_id == null) continue;
+    const id = String(msg.message_id);
+    const parentId = msg.parent_id == null || String(msg.parent_id) === '0' ? null : String(msg.parent_id);
+    parents.set(id, parentId);
+    const role = msg.role === 'USER' ? 'user' : msg.role === 'ASSISTANT' ? 'assistant' : null;
+    if (!role) continue;
+    const fragments = Array.isArray(msg.fragments) ? msg.fragments as Array<Record<string, unknown>> : [];
+    const content = typeof msg.content === 'string' ? msg.content : fragments.filter(f => f.type === 'RESPONSE' || f.type === 'REQUEST').map(f => typeof f.content === 'string' ? f.content : '').join('\n');
+    nodes.set(id, { id, parentId, children: [], role, content });
+  }
+  const ancestor = (id: string | null, seen = new Set<string>()): string | null => {
+    while (id && !seen.has(id)) {
+      seen.add(id);
+      if (nodes.has(id)) return id;
+      id = parents.get(id) ?? null;
+    }
+    return null;
+  };
+  for (const n of nodes.values()) n.parentId = ancestor(n.parentId, new Set([n.id]));
+  const checked = new Set<string>();
+  for (const node of nodes.values()) {
+    const chain = new Set<string>();
+    let id: string | null = node.id;
+    while (id && !checked.has(id)) {
+      if (chain.has(id)) { nodes.get(id)!.parentId = null; break; }
+      chain.add(id); id = nodes.get(id)?.parentId ?? null;
+    }
+    for (const visited of chain) checked.add(visited);
+  }
+  const roots: string[] = [];
+  for (const n of nodes.values()) {
+    if (n.parentId) nodes.get(n.parentId)?.children.push(n.id);
+    else roots.push(n.id);
+  }
+  const currentId = ancestor(data.chat_session?.current_message_id == null ? null : String(data.chat_session.current_message_id));
+  return { nodes, roots, currentId, complete: true };
+}
+
+export function activePath(tree: ChatTree): string[] {
+  const path: string[] = []; const seen = new Set<string>();
+  let id = tree.currentId;
+  while (id && tree.nodes.has(id) && !seen.has(id)) {
+    seen.add(id); path.push(id); id = tree.nodes.get(id)!.parentId;
+  }
+  return path.reverse();
+}
+
+/** Iterative leaf-spacing layout: independent of third-party implementation. */
+export function layoutTree(tree: ChatTree): { points: Map<string, { x: number; y: number }>; width: number; height: number } {
+  const points = new Map<string, { x: number; y: number }>();
+  const stack = tree.roots.slice().reverse().map(id => ({ id, depth: 0, visited: false }));
+  let leaf = 0; let maxDepth = 0;
+  while (stack.length) {
+    const entry = stack.pop()!; const node = tree.nodes.get(entry.id);
+    if (!node) continue;
+    if (!entry.visited && node.children.length) {
+      stack.push({ ...entry, visited: true });
+      for (const id of [...node.children].reverse()) stack.push({ id, depth: entry.depth + 1, visited: false });
+      continue;
+    }
+    const xs = node.children.map(id => points.get(id)!.x);
+    const x = xs.length ? (xs[0] + xs[xs.length - 1]) / 2 : 64 + leaf++ * 76;
+    points.set(node.id, { x, y: 36 + entry.depth * 48 }); maxDepth = Math.max(maxDepth, entry.depth);
+  }
+  return { points, width: Math.max(320, leaf * 76 + 64), height: 80 + maxDepth * 48 };
+}

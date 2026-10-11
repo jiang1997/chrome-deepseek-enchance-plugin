@@ -84,7 +84,7 @@ export function isInPopup(node: Node | null): boolean {
 export function isInExcludedUI(node: Node | null): boolean {
   const el = closestElement(node);
   if (!el) return false;
-  return !!el.closest("aside, nav, header, [role='search'], [role='dialog'], [role='menu']");
+  return !!el.closest("aside, nav, header, [role='search'], [role='dialog'], [role='menu'], [data-dse-tree]");
 }
 
 export type ValidateResult =

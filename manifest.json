@@ -16,6 +16,12 @@
       "js": ["src/content.ts"],
       "css": ["src/styles/popup.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.deepseek.com/*"],
+      "js": ["src/tree/history-bridge.iife.ts"],
+      "world": "MAIN",
+      "run_at": "document_start"
     }
   ]
 }

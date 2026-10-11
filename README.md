@@ -35,6 +35,14 @@ Role is read from the page's message content classes. Ordinals are counted in DO
 
 The quote prompt follows DeepSeek’s light/dark page theme, including theme switches while a quote is pending. If the page has no explicit theme, it follows the system color preference.
 
+## Conversation tree
+
+Click **Conversation tree** at the top right of a DeepSeek page to open a message tree. User messages are blue, DeepSeek replies green, and inactive branches gray. Hover or focus a node to preview its text; click a node on the current branch to scroll to and highlight that message. Search highlights matching nodes across all branches. The reading-position ring follows page scrolling, and the panel follows the page theme.
+
+The panel reads the current conversation's history from DeepSeek using the existing page login state, only while open. It refreshes every 15 seconds while the tab is visible, or when you click Refresh. No credentials or conversations are sent to the extension developer, and the credential remains in the page execution world. Conversation data stays in memory and is cleared on navigation or page reload.
+
+If history cannot be read, the panel shows only currently rendered messages as separate nodes, with an explicit notice that their parent relationships are unknown. Other branches can be previewed, but automatic branch switching is not implemented; use DeepSeek's branch controls, then refresh the tree. Locating messages in a virtual list is best-effort and reports when a target cannot be mounted.
+
 ## Screenshots
 
 | 1. Select & Quote | 2. Ask a Follow-up |
@@ -87,6 +95,7 @@ Verified so far: real-page quote flow and English UI. Not yet fully covered: eve
 ## Development commands
 
 - `npm test`: run unit tests with Vitest.
+- `npm run check:tree`: load the production extension in Chromium against mocked DeepSeek history and verify the tree UI (run `npm run build` first).
 - `npm run typecheck`: check TypeScript types.
 - `npm run build`: create the production extension in `dist/`.
 - `npm run inspect:deepseek`: diagnose the live DeepSeek page structure; screenshots go to `artifacts/`.
@@ -109,7 +118,7 @@ The private key at `keys/deepseek-enhancer.pem` is gitignored. Back it up; losin
 
 ## Privacy
 
-The content script runs only on `chat.deepseek.com`. The extension requests no tabs, storage, cookies, or network permissions. Selected text and the existing draft are processed locally for the quote feature. The extension does not transmit this content to the developer or persist it in storage.
+The content script runs only on `chat.deepseek.com`. The extension requests no tabs, storage, cookies, or additional host permissions. Selected text and the existing draft are processed locally for the quote feature. When you open the conversation tree, the page-world script reads the existing login token to request history from the same DeepSeek origin; the token is not passed to the isolated content script. The extension does not transmit this content to the developer or persist it in storage.
 
 Privacy policy: https://jiang1997.github.io/chrome-deepseek-enchance-plugin/privacy.html
 

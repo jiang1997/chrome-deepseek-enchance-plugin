@@ -12,22 +12,24 @@
   <main>
     <a class="brand" href="./"><img src="assets/icon.svg" width="40" height="40" alt=""><span>DeepSeek Enhancer</span></a>
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: October 2, 2026 · Extension version 0.1.0</p>
-    <p class="summary">Your selected text stays in your browser. The extension does not send chat content or usage data to the developer or to any external server.</p>
+    <p class="updated">Last updated: October 11, 2026</p>
+    <p class="summary">Your selected text stays in your browser. The extension does not send chat content or usage data to the developer or to any server operated by the developer. Opening the conversation tree requests your current chat history from DeepSeek itself.</p>
 
     <h2>What the extension does</h2>
-    <p>DeepSeek Enhancer is an independent, unofficial Chrome extension. It runs only on <code>https://chat.deepseek.com/*</code> and lets you preview selected page text and append it as a quote to the message composer. It is not affiliated with or endorsed by DeepSeek.</p>
+    <p>DeepSeek Enhancer is an independent, unofficial Chrome extension. It runs only on <code>https://chat.deepseek.com/*</code> and lets you preview selected page text and append it as a quote to the message composer. It also displays a searchable conversation tree with message previews and navigation. It is not affiliated with or endorsed by DeepSeek.</p>
 
     <h2>Information processed locally</h2>
     <p>The extension reads the text you select on the DeepSeek chat page, the page layout needed to position the quote prompt, and the existing message draft when you click <strong>Quote</strong>. It uses this information only to display the preview and add your quote without replacing your draft.</p>
     <p>Selections may contain personal information or private conversation content. Processing takes place locally in your browser. The developer does not receive, collect on a server, or have access to this content.</p>
 
+    <p>When you open the conversation tree, a script running in the DeepSeek page reads the existing login token and requests the current conversation history from <code>chat.deepseek.com/api/v0/chat/history_messages</code>. The credential stays in the page execution world; only the history response is passed to the extension UI. The panel refreshes every 15 seconds while open and visible, and on manual refresh. Closing the panel stops these requests. Message text and parent relationships are used to draw the tree, search and preview messages, and locate them on the page.</p>
+
     <h2>Storage and retention</h2>
-    <p>The selected-text snapshot is held temporarily in memory and cleared when the selection is cancelled, after a successful quote, when the prompt is dismissed, or when the conversation changes or the page is left. The extension does not persist conversation content or selections in files, browser storage, or a database.</p>
+    <p>The selected-text snapshot is held temporarily in memory and cleared when the selection is cancelled, after a successful quote, when the prompt is dismissed, or when the conversation changes or the page is left. Conversation-tree data is held in memory and cleared on conversation navigation or page reload. The extension does not persist conversation content or selections in files, browser storage, or a database.</p>
     <p>After you click <strong>Quote</strong>, the quoted text becomes part of your draft on the DeepSeek page. You can edit or delete it there. Any draft retention by the DeepSeek website is controlled by DeepSeek, not by this extension.</p>
 
     <h2>Sharing, analytics, and advertising</h2>
-    <p>The extension makes no network requests and includes no analytics, advertising, tracking tools, or remotely hosted executable code. It does not sell, share, or transfer your selected text or drafts to the developer or other parties. It does not read account credentials or cookies and does not access browsing history or other websites.</p>
+    <p>The extension only requests current-chat history from DeepSeek using the existing login state. It includes no analytics, advertising, tracking tools, or remotely hosted executable code. It does not sell, share, or transfer your selected text or drafts to the developer or other parties. The tree feature reads the existing DeepSeek login token solely to authenticate this history request. It does not read cookies or access browsing history or other websites.</p>
 
     <h2>When you send a message</h2>
     <p>The extension does not send messages automatically. If you send a draft containing a quote, the DeepSeek website processes that message under its own terms and privacy policy. This policy covers the extension's behavior, not the DeepSeek service.</p>
@@ -36,7 +38,7 @@
     <p>You choose which text to select and whether to click <strong>Quote</strong>. You can dismiss the quote prompt, edit or remove an inserted quote before sending, restrict the extension's site access in Chrome, or disable or uninstall it at any time. The developer holds no extension conversation data to export or delete.</p>
 
     <h2>Limited Use</h2>
-    <p>DeepSeek Enhancer uses information only to provide its visible quote feature and complies with the Chrome Web Store User Data Policy, including the Limited Use requirements. User data is not used for advertising, profiling, or unrelated purposes.</p>
+    <p>DeepSeek Enhancer uses information only to provide its visible quote and conversation-tree features and complies with the Chrome Web Store User Data Policy, including the Limited Use requirements. User data is not used for advertising, profiling, or unrelated purposes.</p>
 
     <h2>This policy website</h2>
     <p>This page is hosted on GitHub Pages. It contains no analytics, external fonts, or tracking scripts. GitHub may process visitor request information to operate and secure its hosting service, as described in the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a>. Visiting this page does not give the developer access to your DeepSeek conversations.</p>
