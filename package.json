@@ -1,6 +1,6 @@
 {
   "name": "deepseek-enhancer",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "license": "MIT",
   "description": "DeepSeek web enhancement extension: quote selections into the composer (Manifest V3)",
