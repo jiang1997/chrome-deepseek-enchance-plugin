@@ -12,7 +12,8 @@ if (!bridgeWindow.__DSE_HISTORY_BRIDGE__) {
     }
     if (request.type !== 'dse:history-request') return;
     const match = location.pathname.match(/^\/a\/chat\/s\/([a-f0-9-]+)\/?$/i);
-    if (!match || request.conversationId !== match[1]) return;
+    const sessionId = match?.[1];
+    if (!sessionId || request.conversationId !== sessionId) return;
     active?.controller.abort();
     const controller = new AbortController();
     active = { requestId: request.requestId, controller };
@@ -23,15 +24,15 @@ if (!bridgeWindow.__DSE_HISTORY_BRIDGE__) {
       let token = raw;
       try { const parsed = JSON.parse(raw); token = typeof parsed === 'string' ? parsed : parsed.value; } catch { /* plain token */ }
       if (typeof token !== 'string' || !token) throw new Error('Could not read the sign-in state.');
-      const response = await fetch(`/api/v0/chat/history_messages?chat_session_id=${encodeURIComponent(match[1])}`, {
+      const response = await fetch(`/api/v0/chat/history_messages?chat_session_id=${encodeURIComponent(sessionId)}`, {
         credentials: 'include', headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
       });
       if (!response.ok) throw new Error('Conversation history is temporarily unavailable.');
       const data = await response.json();
-      if (location.pathname.match(/^\/a\/chat\/s\/([a-f0-9-]+)\/?$/i)?.[1] !== match[1]) return;
-      window.postMessage({ type: 'dse:history-response', requestId: request.requestId, conversationId: match[1], data }, location.origin);
+      if (location.pathname.match(/^\/a\/chat\/s\/([a-f0-9-]+)\/?$/i)?.[1] !== sessionId) return;
+      window.postMessage({ type: 'dse:history-response', requestId: request.requestId, conversationId: sessionId, data }, location.origin);
     } catch {
-      window.postMessage({ type: 'dse:history-response', requestId: request.requestId, conversationId: match[1], error: 'Could not load full history. Showing rendered messages; try refreshing.' }, location.origin);
+      window.postMessage({ type: 'dse:history-response', requestId: request.requestId, conversationId: sessionId, error: 'Could not load full history. Showing rendered messages; try refreshing.' }, location.origin);
     } finally { if (active?.controller === controller) active = null; clearTimeout(timer); }
   });
 }

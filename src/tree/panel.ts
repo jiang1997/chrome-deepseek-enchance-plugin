@@ -119,11 +119,12 @@ export class TreePanel {
     svg.setAttribute('role', 'group'); svg.setAttribute('aria-label', 'Conversation branch tree');
     for (const node of this.tree.nodes.values()) {
       const point = layout.points.get(node.id); if (!point) continue;
-      const parent = node.parentId ? layout.points.get(node.parentId) : null;
-      if (parent) {
+      const parentId = node.parentId;
+      const parent = parentId ? layout.points.get(parentId) : null;
+      if (parent && parentId) {
         const line = document.createElementNS(NS, 'path'); const middle = (point.y + parent.y) / 2;
         line.setAttribute('d', `M${parent.x},${parent.y} C${parent.x},${middle} ${point.x},${middle} ${point.x},${point.y}`);
-        line.setAttribute('class', `edge ${active.has(node.id) && active.has(node.parentId!) ? 'active' : ''}`); svg.append(line);
+        line.setAttribute('class', `edge ${active.has(node.id) && active.has(parentId) ? 'active' : ''}`); svg.append(line);
       }
     }
     for (const node of this.tree.nodes.values()) {

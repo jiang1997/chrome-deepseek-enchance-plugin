@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDeferred, flushAsync, installAnimationFrameStub, selectText, stubRect, type RafStub } from './helpers/dom';
+import { createDeferred, firstCall, flushAsync, installAnimationFrameStub, selectText, stubRect, type RafStub } from './helpers/dom';
 import { parseHistory, type ChatTree } from '../src/tree/model';
 const history = vi.hoisted(() => ({ get: vi.fn(), syncConversation: vi.fn() }));
 vi.mock('../src/tree/history-service', () => ({ conversationHistory: history }));
@@ -39,7 +39,7 @@ describe('quote history integration', () => {
   it('does not let an old history response relabel a replacement selection', async () => {
     const old = createDeferred<ChatTree>(); const current = createDeferred<ChatTree>();
     history.get.mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise);
-    select('4'); const oldSignal = history.get.mock.calls[0][1] as AbortSignal;
+    select('4'); const oldSignal = firstCall(history.get)[1] as AbortSignal;
     select('3'); expect(oldSignal.aborted).toBe(true);
     old.resolve(fullTree()); await flushAsync(); expect(popup().textContent).toContain('Selected user:');
     current.resolve(fullTree()); await flushAsync(); expect(popup().textContent).toContain('Selected user #2:');
@@ -47,7 +47,7 @@ describe('quote history integration', () => {
   it('cancels a quote waiting for history when the user dismisses it', async () => {
     const pending = createDeferred<ChatTree>(); history.get.mockReturnValue(pending.promise);
     select(); button().click(); document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape' }));
-    expect((history.get.mock.calls[0][1] as AbortSignal).aborted).toBe(true);
+    expect((firstCall(history.get)[1] as AbortSignal).aborted).toBe(true);
     pending.resolve(fullTree()); await flushAsync(); expect(composer.value).toBe('draft');
     expect(popup().style.display).toBe('none');
   });

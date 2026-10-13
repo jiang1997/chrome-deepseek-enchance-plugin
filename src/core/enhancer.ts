@@ -81,14 +81,16 @@ export function init(): void {
   function enrichContext(snapshot: SelectionSnapshot): void {
     cancelContext();
     const id = conversationId();
-    if (!id || !snapshot.messageId || snapshot.context.role === "unknown") return;
+    // Capture the id so the narrowing survives into the async continuation.
+    const messageId = snapshot.messageId;
+    if (!id || !messageId || snapshot.context.role === "unknown") return;
     const controller = new AbortController();
     const path = conversationPath;
     contextController = controller;
-    contextTask = conversationHistory.get(id, controller.signal, { messageId: snapshot.messageId }).then(tree => {
+    contextTask = conversationHistory.get(id, controller.signal, { messageId }).then(tree => {
       if (controller.signal.aborted || state.snapshot !== snapshot || window.location.pathname !== path ||
           !sameSelection(selectionIdentity(window.getSelection()), lastSelection)) return;
-      const context = messageOrdinal(tree, snapshot.messageId!);
+      const context = messageOrdinal(tree, messageId);
       if (!context || context.role !== snapshot.context.role) return;
       snapshot.context = context;
       popup.updatePreview(snapshot.text, describeMessageContext(context));

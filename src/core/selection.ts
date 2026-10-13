@@ -20,7 +20,7 @@ export type SelectionSnapshot = {
   /** Provenance of the message the selection lives in (role + ordinal). */
   context: MessageContext;
   /** Exact message identity, only for a selection contained in one message. */
-  messageId?: string;
+  messageId?: string | undefined;
 };
 
 export type SelectionRejectReason =

@@ -73,6 +73,20 @@ export function selectText(element: Element, rect: Partial<DOMRect> = {}): Selec
   return selection;
 }
 
+/** Child element at `index`, failing loudly when the fixture is malformed. */
+export function childAt(parent: Element, index: number): Element {
+  const node = parent.children.item(index);
+  if (!node) throw new Error(`fixture expected a child at index ${index}`);
+  return node;
+}
+
+/** First recorded call of a mock, failing loudly when the call never happened. */
+export function firstCall(mock: { mock: { calls: unknown[][] } }): unknown[] {
+  const call = mock.mock.calls[0];
+  if (!call) throw new Error("expected the mock to have been called");
+  return call;
+}
+
 export function createDeferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason?: unknown) => void;

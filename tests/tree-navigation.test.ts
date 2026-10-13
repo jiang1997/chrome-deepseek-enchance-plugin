@@ -15,9 +15,10 @@ describe('tree navigation and fallback', () => {
     const ids = ['99', '7', '31', '2', '81', '15', '44', '3', '96', '22'];
     let jumped = '';
     const render = () => {
-      const index = Math.min(9, Math.floor(list.scrollTop / 100));
-      const item = document.createElement('div'); item.setAttribute('data-virtual-list-item-key', ids[index]);
-      item.scrollIntoView = () => { jumped = ids[index]; }; list.replaceChildren(item);
+      const index = Math.min(ids.length - 1, Math.floor(list.scrollTop / 100));
+      const id = ids[index] ?? '';
+      const item = document.createElement('div'); item.setAttribute('data-virtual-list-item-key', id);
+      item.scrollIntoView = () => { jumped = id; }; list.replaceChildren(item);
     };
     render(); list.addEventListener('scroll', render);
     expect(await jumpToMessage('96', ids, new AbortController().signal)).toBe(true);

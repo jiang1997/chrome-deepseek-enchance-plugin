@@ -38,7 +38,7 @@ export function parseHistory(raw: unknown): ChatTree {
     const chain = new Set<string>();
     let id: string | null = node.id;
     while (id && !checked.has(id)) {
-      if (chain.has(id)) { nodes.get(id)!.parentId = null; break; }
+      if (chain.has(id)) { const cyclic = nodes.get(id); if (cyclic) cyclic.parentId = null; break; }
       chain.add(id); id = nodes.get(id)?.parentId ?? null;
     }
     for (const visited of chain) checked.add(visited);
@@ -76,8 +76,10 @@ export function messageOrdinal(tree: ChatTree, messageId: string): { role: 'user
 export function activePath(tree: ChatTree): string[] {
   const path: string[] = []; const seen = new Set<string>();
   let id = tree.currentId;
-  while (id && tree.nodes.has(id) && !seen.has(id)) {
-    seen.add(id); path.push(id); id = tree.nodes.get(id)!.parentId;
+  while (id && !seen.has(id)) {
+    const node = tree.nodes.get(id);
+    if (!node) break;
+    seen.add(id); path.push(id); id = node.parentId;
   }
   return path.reverse();
 }
@@ -88,15 +90,19 @@ export function layoutTree(tree: ChatTree): { points: Map<string, { x: number; y
   const stack = tree.roots.slice().reverse().map(id => ({ id, depth: 0, visited: false }));
   let leaf = 0; let maxDepth = 0;
   while (stack.length) {
-    const entry = stack.pop()!; const node = tree.nodes.get(entry.id);
+    const entry = stack.pop(); if (!entry) break;
+    const node = tree.nodes.get(entry.id);
     if (!node) continue;
     if (!entry.visited && node.children.length) {
       stack.push({ ...entry, visited: true });
       for (const id of [...node.children].reverse()) stack.push({ id, depth: entry.depth + 1, visited: false });
       continue;
     }
-    const xs = node.children.map(id => points.get(id)!.x);
-    const x = xs.length ? (xs[0] + xs[xs.length - 1]) / 2 : 64 + leaf++ * 76;
+    // A child without a placed point means layout is inconsistent; ignore it instead of throwing.
+    const xs = node.children.map(id => points.get(id)?.x).filter((x): x is number => x !== undefined);
+    const first = xs[0];
+    const last = xs[xs.length - 1];
+    const x = first !== undefined && last !== undefined ? (first + last) / 2 : 64 + leaf++ * 76;
     points.set(node.id, { x, y: 36 + entry.depth * 48 }); maxDepth = Math.max(maxDepth, entry.depth);
   }
   return { points, width: Math.max(320, leaf * 76 + 64), height: 80 + maxDepth * 48 };

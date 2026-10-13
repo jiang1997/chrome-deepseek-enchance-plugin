@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createDeferred,
+  firstCall,
   flushAsync,
   installAnimationFrameStub,
   selectText,
@@ -234,7 +235,7 @@ describe("content script async state management", () => {
     await flushAsync();
 
     expect(mocks.insertIntoComposer).toHaveBeenCalledTimes(1);
-    const [target, quote] = mocks.insertIntoComposer.mock.calls[0];
+    const [target, quote] = firstCall(mocks.insertIntoComposer);
     expect(target).toBe(late);
     expect(quote).toBe("“Selected sentence.”\n\n");
   });
@@ -286,7 +287,7 @@ describe("content script async state management", () => {
     window.getSelection()!.removeAllRanges();
     document.dispatchEvent(new Event("selectionchange"));
     expect(getPopup().style.display).toBe("none");
-    expect(mocks.findComposerWithRetry.mock.calls[0][1].aborted).toBe(true);
+    expect((firstCall(mocks.findComposerWithRetry)[1] as AbortSignal).aborted).toBe(true);
     deferred.resolve(mountComposer());
     await flushAsync();
     raf.flush();

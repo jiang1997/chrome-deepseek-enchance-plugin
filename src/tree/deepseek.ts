@@ -7,7 +7,8 @@ export function renderedTree(): ChatTree {
   // Unknown offscreen ancestors are intentionally not invented.
   for (const item of messageItems()) {
     const role = classifyMessageRole(item); if (role === 'unknown') continue;
-    const id = item.getAttribute(MESSAGE_ITEM_ATTR)!;
+    const id = item.getAttribute(MESSAGE_ITEM_ATTR);
+    if (id === null) continue;
     const content = item.querySelector(role === 'user' ? '.ds-collapsible-text' : '.ds-assistant-message-main-content, .ds-markdown')?.textContent?.trim() ?? '';
     nodes.set(id, { id, role, content, parentId: null, children: [] });
   }
@@ -50,7 +51,11 @@ export async function jumpToMessage(id: string, path: string[], signal: AbortSig
     await new Promise(resolve => window.setTimeout(resolve, 100));
     if (signal.aborted) return false;
     const item = find(); if (item) { highlight(item); return true; }
-    const indices = messageItems().map(e => path.indexOf(e.getAttribute(MESSAGE_ITEM_ATTR)!)).filter(i => i >= 0);
+    const indices = messageItems()
+      .map(e => e.getAttribute(MESSAGE_ITEM_ATTR))
+      .filter((key): key is string => key !== null)
+      .map(key => path.indexOf(key))
+      .filter(i => i >= 0);
     if (!indices.length) break;
     if (target < Math.min(...indices)) high = scroller.scrollTop;
     else if (target > Math.max(...indices)) low = scroller.scrollTop;
