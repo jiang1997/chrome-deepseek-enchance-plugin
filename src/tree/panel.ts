@@ -59,7 +59,11 @@ export class TreePanel {
     this.syncTheme();
   }
 
-  private el<T extends Element = HTMLElement>(selector: string): T { return this.shadow.querySelector<T>(selector)!; }
+  /** Every selector below is statically present in the template built in the constructor. */
+  private el<T extends Element = HTMLElement>(selector: string): T {
+    // biome-ignore lint/style/noNonNullAssertion: static template contract; a miss is a programming error, not a runtime state.
+    return this.shadow.querySelector<T>(selector)!;
+  }
   private status(text: string): void { this.el('.status').textContent = text; }
   private syncTheme = (): void => {
     const explicit = [document.documentElement, document.body].map(el => el.getAttribute('data-theme') || (el.classList.contains('dark') ? 'dark' : el.classList.contains('light') ? 'light' : '')).find(Boolean);

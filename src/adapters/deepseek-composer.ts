@@ -47,7 +47,7 @@ function isDisabledOrReadonly(el: Element): boolean {
  * Guards against the element being removed, disabled, or made read-only while a lookup is in flight.
  */
 export function isComposerEditable(el: ComposerElement | null | undefined): boolean {
-  if (!el || !el.isConnected) return false;
+  if (!el?.isConnected) return false;
   return !isDisabledOrReadonly(el);
 }
 
