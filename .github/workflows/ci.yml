@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   check:
-    name: Typecheck, test & build
+    name: Lint, typecheck, test, build & browser check
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -41,6 +41,26 @@ jobs:
 
       - name: Build extension
         run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Check production extension in Chromium
+        id: tree-check
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          mkdir -p artifacts/tree-check
+          npm run check:tree 2>&1 | tee artifacts/tree-check/run.log
+
+      - name: Upload browser check diagnostics
+        if: ${{ failure() && steps.tree-check.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: tree-check-diagnostics
+          path: artifacts/tree-check/
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7

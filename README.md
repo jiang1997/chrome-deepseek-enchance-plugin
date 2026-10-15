@@ -105,6 +105,8 @@ Verified so far: real-page quote flow and English UI. Not yet fully covered: eve
 - `npm run inspect:deepseek`: diagnose the live DeepSeek page structure; screenshots go to `artifacts/`.
 - `npm run pack:zip`: build the store upload ZIP.
 
+CI runs `check:tree` after building the extension and installing Chromium. The check uses mocked DeepSeek responses and requires no account. For local setup, run `npx playwright install chromium` first. Screenshots are saved in `artifacts/tree-check/`; failures also save an error report and `trace.zip`. CI uploads these diagnostics with the run log as `tree-check-diagnostics` on failure (retained for 7 days). Open a trace with `npx playwright show-trace artifacts/tree-check/trace.zip`.
+
 Store listing sources, screenshots, and release steps: `store-assets/README.md`.
 
 Automated store upload and review submission: [GitHub Actions publishing guide](store-assets/automated-publishing.md).

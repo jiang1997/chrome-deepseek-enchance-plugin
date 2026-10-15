@@ -1,19 +1,23 @@
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
-import { readFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 // Exercise the production extension in both execution worlds on a mocked DeepSeek origin.
 // No real credentials or conversations are used.
 const extension = path.resolve('dist');
+const artifacts = path.resolve('artifacts/tree-check');
+await mkdir(artifacts, { recursive: true });
 const profile = await mkdtemp(path.join(tmpdir(), 'dse-tree-'));
-const context = await chromium.launchPersistentContext(profile, {
-  channel: 'chromium', headless: true, viewport: { width: 1440, height: 900 },
-  args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
-});
+let context;
 const errors = [];
 try {
+  context = await chromium.launchPersistentContext(profile, {
+    channel: 'chromium', headless: true, viewport: { width: 1440, height: 900 },
+    args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
+  });
+  await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const fixture = (await readFile('fixtures/mock-chat.html', 'utf8')).replace(/<script type="module">[\s\S]*?<\/script>/, '');
   const message = (id, parent, role, content) => ({ message_id: id, parent_id: parent, role, fragments: [{ type: role === 'USER' ? 'REQUEST' : 'RESPONSE', content }] });
   const data = { data: { biz_data: { chat_messages: [message(1, 0, 'USER', 'What is a closure?'), message(2, 1, 'ASSISTANT', 'A JavaScript closure keeps the lexical environment.'), message(5, 1, 'ASSISTANT', 'Alternative answer <script>window.bad = true</script>'), message(3, 2, 'USER', 'Show me an example.'), message(4, 3, 'ASSISTANT', 'function outer() { const x = 1; return () => x; }')], chat_session: { current_message_id: 4 } } } };
@@ -66,12 +70,11 @@ try {
   await page.getByText('Message located', { exact: true }).waitFor();
   await page.evaluate(() => document.documentElement.classList.add('dark'));
   await page.waitForFunction(() => document.querySelector('[data-dse-tree]')?.getAttribute('data-theme') === 'dark');
-  await mkdir('artifacts', { recursive: true });
-  await page.screenshot({ path: 'artifacts/tree-dark.png' });
+  await page.screenshot({ path: path.join(artifacts, 'tree-dark.png') });
   await page.evaluate(() => document.documentElement.classList.replace('dark', 'light'));
   await page.waitForFunction(() => document.querySelector('[data-dse-tree]')?.getAttribute('data-theme') === 'light');
   await page.locator('[data-dse-tree] .node[data-id="1"]').hover();
-  await page.screenshot({ path: 'artifacts/tree-light.png' });
+  await page.screenshot({ path: path.join(artifacts, 'tree-light.png') });
   fail = true;
   await page.getByRole('button', { name: 'Refresh conversation tree' }).click();
   await page.getByText('Refresh failed. Showing the previously loaded tree.').waitFor();
@@ -88,6 +91,19 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Conversation tree', exact: true }).isVisible(), true);
   assert.deepEqual(errors, []);
   console.log('Production extension check passed: history bridge, quote ordinals, shared cache, branches, search, preview, navigation, fallback, themes, keyboard and message jump.');
+} catch (error) {
+  const diagnostics = [writeFile(path.join(artifacts, 'failure.txt'), `${error instanceof Error ? error.stack ?? error.message : String(error)}\n\nPage errors:\n${errors.join('\n')}\n`)];
+  if (context) {
+    diagnostics.push(context.tracing.stop({ path: path.join(artifacts, 'trace.zip') }));
+    for (const [index, page] of context.pages().entries()) {
+      diagnostics.push(page.screenshot({ path: path.join(artifacts, `failure-${index}.png`), timeout: 5000 }));
+    }
+  }
+  for (const result of await Promise.allSettled(diagnostics)) {
+    if (result.status === 'rejected') console.error('Could not save browser check diagnostic:', result.reason);
+  }
+  throw error;
 } finally {
-  await context.close(); await rm(profile, { recursive: true, force: true });
+  try { await context?.close(); }
+  finally { await rm(profile, { recursive: true, force: true }); }
 }
