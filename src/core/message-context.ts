@@ -31,8 +31,7 @@ export const MESSAGE_LIST_SELECTOR = ".ds-virtual-list-items";
 const VISIBLE_ITEMS_SELECTOR = ".ds-virtual-list-visible-items";
 const WINDOW_OFFSET_PROPERTY = "--dsl-virtual-list-transform-y";
 
-const ASSISTANT_CONTENT_SELECTOR =
-  ".ds-assistant-message-main-content, .ds-think-content, .ds-markdown";
+const ASSISTANT_CONTENT_SELECTOR = ".ds-assistant-message-main-content, .ds-think-content, .ds-markdown";
 const USER_CONTENT_SELECTOR = ".ds-collapsible-text";
 
 function closestElement(node: Node | null): Element | null {

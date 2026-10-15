@@ -110,12 +110,15 @@ describe("resolveMessageContext", () => {
   });
 
   it("omits the ordinal when the virtual list has unmounted earlier items", () => {
-    const list = renderConversation([
-      { key: 21, role: "user" },
-      { key: 22, role: "assistant" },
-      { key: 23, role: "user" },
-      { key: 24, role: "assistant" },
-    ], "1200px");
+    const list = renderConversation(
+      [
+        { key: 21, role: "user" },
+        { key: 22, role: "assistant" },
+        { key: 23, role: "user" },
+        { key: 24, role: "assistant" },
+      ],
+      "1200px",
+    );
     const assistant = childAt(list, 3).querySelector("p")!.firstChild!;
     expect(resolveMessageContext(assistant)).toEqual({
       role: "assistant",

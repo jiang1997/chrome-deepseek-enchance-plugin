@@ -98,12 +98,18 @@ Verified so far: real-page quote flow and English UI. Not yet fully covered: eve
 
 ## Development commands
 
+- `npm run format`: apply the shared Biome formatting rules.
+- `npm run format:check`: check formatting without modifying files.
+- `npm run lint`: run Biome lint rules without checking formatting.
+- `npm run lint:fix`: apply safe lint fixes without formatting files.
 - `npm test`: run unit tests with Vitest.
 - `npm run check:tree`: load the production extension in Chromium against mocked DeepSeek history and verify the tree UI (run `npm run build` first).
 - `npm run typecheck`: check TypeScript types.
 - `npm run build`: create the production extension in `dist/`.
 - `npm run inspect:deepseek`: diagnose the live DeepSeek page structure; screenshots go to `artifacts/`.
 - `npm run pack:zip`: build the store upload ZIP.
+
+Biome formats supported files under `src/`, `tests/`, and `scripts/`, plus root JSON and TypeScript files. The shared rules use 2 spaces, LF line endings, a 120-character line width, double quotes, semicolons, and trailing commas in JavaScript/TypeScript. Import sorting remains disabled. Markdown, HTML, YAML, and generated files are outside this formatting scope. CI checks formatting separately from lint; production builds enforce both through `biome ci`.
 
 CI runs `check:tree` after building the extension and installing Chromium. The check uses mocked DeepSeek responses and requires no account. For local setup, run `npx playwright install chromium` first. Screenshots are saved in `artifacts/tree-check/`; failures also save an error report and `trace.zip`. CI uploads these diagnostics with the run log as `tree-check-diagnostics` on failure (retained for 7 days). Open a trace with `npx playwright show-trace artifacts/tree-check/trace.zip`.
 

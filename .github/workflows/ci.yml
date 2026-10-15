@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   check:
-    name: Lint, typecheck, test, build & browser check
+    name: Format, lint, typecheck, test, build & browser check
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -29,6 +29,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
 
       - name: Lint
         run: npm run lint

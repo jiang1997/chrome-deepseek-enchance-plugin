@@ -39,9 +39,7 @@ try {
 
   // Input candidate survey (same strategy as the extension's findComposer)
   const candidates = await page.evaluate(() => {
-    const els = Array.from(
-      document.querySelectorAll('textarea, [contenteditable="true"], [role="textbox"]'),
-    );
+    const els = Array.from(document.querySelectorAll('textarea, [contenteditable="true"], [role="textbox"]'));
     return els.slice(0, 20).map((el) => {
       const r = el.getBoundingClientRect();
       const cs = getComputedStyle(el);
@@ -52,7 +50,7 @@ try {
         placeholder: el.getAttribute("placeholder") || el.placeholder || null,
         contenteditable: el.getAttribute("contenteditable"),
         id: el.id || null,
-        class: (el.className?.toString?.().slice(0, 120)) || null,
+        class: el.className?.toString?.().slice(0, 120) || null,
         rect: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
         visible: cs.display !== "none" && cs.visibility !== "hidden" && r.width > 0 && r.height > 0,
         inAside: !!el.closest("aside,nav,header"),

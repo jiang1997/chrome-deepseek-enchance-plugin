@@ -24,8 +24,8 @@
   border-radius: 10px;
   background: var(--dse-surface);
   box-shadow: var(--dse-shadow);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-size: 13px;
   line-height: 1.4;
   color: var(--dse-text);

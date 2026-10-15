@@ -41,8 +41,15 @@ function selectionIdentity(sel: Selection | null): SelectionIdentity | null {
 }
 
 function sameSelection(a: SelectionIdentity | null, b: SelectionIdentity | null): boolean {
-  return !!a && !!b && a.text === b.text && a.startNode === b.startNode &&
-    a.startOffset === b.startOffset && a.endNode === b.endNode && a.endOffset === b.endOffset;
+  return (
+    !!a &&
+    !!b &&
+    a.text === b.text &&
+    a.startNode === b.startNode &&
+    a.startOffset === b.startOffset &&
+    a.endNode === b.endNode &&
+    a.endOffset === b.endOffset
+  );
 }
 
 type PluginState = {
@@ -87,16 +94,24 @@ export function init(): void {
     const controller = new AbortController();
     const path = conversationPath;
     contextController = controller;
-    contextTask = conversationHistory.get(id, controller.signal, { messageId }).then(tree => {
-      if (controller.signal.aborted || state.snapshot !== snapshot || window.location.pathname !== path ||
-          !sameSelection(selectionIdentity(window.getSelection()), lastSelection)) return;
-      const context = messageOrdinal(tree, messageId);
-      if (!context || context.role !== snapshot.context.role) return;
-      snapshot.context = context;
-      popup.updatePreview(snapshot.text, describeMessageContext(context));
-    }).catch(() => {
-      // Keep the conservative DOM context if history is unavailable or malformed.
-    });
+    contextTask = conversationHistory
+      .get(id, controller.signal, { messageId })
+      .then((tree) => {
+        if (
+          controller.signal.aborted ||
+          state.snapshot !== snapshot ||
+          window.location.pathname !== path ||
+          !sameSelection(selectionIdentity(window.getSelection()), lastSelection)
+        )
+          return;
+        const context = messageOrdinal(tree, messageId);
+        if (!context || context.role !== snapshot.context.role) return;
+        snapshot.context = context;
+        popup.updatePreview(snapshot.text, describeMessageContext(context));
+      })
+      .catch(() => {
+        // Keep the conservative DOM context if history is unavailable or malformed.
+      });
   }
 
   function cancelPendingFrame(): void {

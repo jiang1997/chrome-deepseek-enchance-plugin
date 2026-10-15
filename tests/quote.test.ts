@@ -3,7 +3,9 @@ import { appendQuote, formatQuote, formatQuoteLabel } from "../src/core/quote";
 
 describe("formatQuote", () => {
   it("wraps in smart quotes and appends a blank line", () => {
-    expect(formatQuote("A closure keeps the lexical environment.")).toBe("“A closure keeps the lexical environment.”\n\n");
+    expect(formatQuote("A closure keeps the lexical environment.")).toBe(
+      "“A closure keeps the lexical environment.”\n\n",
+    );
   });
 
   it("adds a provenance label for assistant replies", () => {

@@ -115,9 +115,7 @@ function setNativeTextareaValue(textarea: HTMLTextAreaElement, value: string): v
 }
 
 function dispatchInput(el: Element, quote: string): void {
-  el.dispatchEvent(
-    new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: quote }),
-  );
+  el.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: quote }));
 }
 
 export function insertIntoTextarea(textarea: HTMLTextAreaElement, quote: string): boolean {
@@ -178,10 +176,7 @@ export function insertIntoComposer(el: ComposerElement, quote: string): boolean 
  * Retry finding shortly (composer not rendered yet), retries every frame for 300ms by default.
  * Pass an AbortSignal to stop retrying as soon as the prompt is closed; it then resolves to null.
  */
-export function findComposerWithRetry(
-  timeoutMs = 300,
-  signal?: AbortSignal,
-): Promise<ComposerElement | null> {
+export function findComposerWithRetry(timeoutMs = 300, signal?: AbortSignal): Promise<ComposerElement | null> {
   return new Promise((resolve) => {
     if (signal?.aborted) {
       resolve(null);

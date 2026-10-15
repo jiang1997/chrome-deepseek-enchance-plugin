@@ -27,4 +27,6 @@ await writeFile(keyPath, pem, { encoding: "utf8", mode: 0o600, flag: "wx" });
 await chmod(keyPath, 0o600);
 
 console.log(`Signing key generated: ${keyPath}`);
-console.log("Back it up safely and do not commit it; losing it changes the extension ID and prevents in-place upgrades.");
+console.log(
+  "Back it up safely and do not commit it; losing it changes the extension ID and prevents in-place upgrades.",
+);

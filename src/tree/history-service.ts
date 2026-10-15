@@ -1,5 +1,5 @@
-import { requestHistory } from './deepseek';
-import { parseHistory, type ChatTree } from './model';
+import { requestHistory } from "./deepseek";
+import { parseHistory, type ChatTree } from "./model";
 
 const CACHE_MS = 15000;
 type Flight = { controller: AbortController; users: Set<symbol>; promise: Promise<ChatTree> };
@@ -22,37 +22,49 @@ export class ConversationHistory {
   }
 
   syncConversation(id: string | null): void {
-    if (this.id !== id) { this.clear(); this.id = id; }
+    if (this.id !== id) {
+      this.clear();
+      this.id = id;
+    }
   }
 
   get(id: string, signal: AbortSignal, options: { force?: boolean; messageId?: string } = {}): Promise<ChatTree> {
-    if (signal.aborted) return Promise.reject(new Error('Cancelled'));
+    if (signal.aborted) return Promise.reject(new Error("Cancelled"));
     this.syncConversation(id);
     const cache = this.cached;
-    if (!options.force && cache && Date.now() - cache.time < CACHE_MS &&
-        (!options.messageId || cache.tree.nodes.has(options.messageId))) {
+    if (
+      !options.force &&
+      cache &&
+      Date.now() - cache.time < CACHE_MS &&
+      (!options.messageId || cache.tree.nodes.has(options.messageId))
+    ) {
       return Promise.resolve().then(() => {
-        if (signal.aborted) throw new Error('Cancelled');
+        if (signal.aborted) throw new Error("Cancelled");
         return cache.tree;
       });
     }
     if (!this.flight) {
       const controller = new AbortController();
       const generation = this.generation;
-      const promise = this.load(id, controller.signal).then(raw => {
-        if (controller.signal.aborted || generation !== this.generation) throw new Error('Cancelled');
-        const tree = parseHistory(raw);
-        this.cached = { tree, time: Date.now() };
-        return tree;
-      }).finally(() => { if (this.flight === flight) this.flight = null; });
+      const promise = this.load(id, controller.signal)
+        .then((raw) => {
+          if (controller.signal.aborted || generation !== this.generation) throw new Error("Cancelled");
+          const tree = parseHistory(raw);
+          this.cached = { tree, time: Date.now() };
+          return tree;
+        })
+        .finally(() => {
+          if (this.flight === flight) this.flight = null;
+        });
       const flight: Flight = { controller, users: new Set(), promise };
       this.flight = flight;
     }
     const flight = this.flight;
-    const user = Symbol(); flight.users.add(user);
+    const user = Symbol();
+    flight.users.add(user);
     return new Promise((resolve, reject) => {
       const release = () => {
-        signal.removeEventListener('abort', abort);
+        signal.removeEventListener("abort", abort);
         flight.users.delete(user);
       };
       const abort = () => {
@@ -61,13 +73,20 @@ export class ConversationHistory {
           flight.controller.abort();
           if (this.flight === flight) this.flight = null;
         }
-        reject(new Error('Cancelled'));
+        reject(new Error("Cancelled"));
       };
-      signal.addEventListener('abort', abort, { once: true });
-      flight.promise.then(tree => {
-        release();
-        if (signal.aborted) reject(new Error('Cancelled')); else resolve(tree);
-      }, error => { release(); reject(error); });
+      signal.addEventListener("abort", abort, { once: true });
+      flight.promise.then(
+        (tree) => {
+          release();
+          if (signal.aborted) reject(new Error("Cancelled"));
+          else resolve(tree);
+        },
+        (error) => {
+          release();
+          reject(error);
+        },
+      );
     });
   }
 }

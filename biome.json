@@ -5,7 +5,18 @@
     "includes": ["src/**", "tests/**", "scripts/**", "*.json", "*.ts"]
   },
   "formatter": {
-    "enabled": false
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
   },
   "linter": {
     "enabled": true,

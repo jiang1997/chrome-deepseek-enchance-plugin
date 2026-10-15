@@ -33,14 +33,12 @@ describe("cleanSelectionText", () => {
 
 describe("isValidRect", () => {
   it("zero size is invalid", () => {
-    expect(
-      isValidRect({ top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0, x: 0, y: 0 }),
-    ).toBe(false);
+    expect(isValidRect({ top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0, x: 0, y: 0 })).toBe(false);
   });
   it("outside the viewport is invalid", () => {
-    expect(
-      isValidRect({ top: -100, left: 10, bottom: -50, right: 100, width: 90, height: 50, x: 10, y: -100 }),
-    ).toBe(false);
+    expect(isValidRect({ top: -100, left: 10, bottom: -50, right: 100, width: 90, height: 50, x: 10, y: -100 })).toBe(
+      false,
+    );
   });
 });
 

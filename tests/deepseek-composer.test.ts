@@ -16,7 +16,14 @@ afterEach(() => {
 function rectStub(el: Element, rect: Partial<DOMRect>) {
   el.getBoundingClientRect = () =>
     ({
-      top: 600, left: 100, bottom: 700, right: 900, width: 800, height: 100, x: 100, y: 600,
+      top: 600,
+      left: 100,
+      bottom: 700,
+      right: 900,
+      width: 800,
+      height: 100,
+      x: 100,
+      y: 600,
       ...rect,
     }) as DOMRect;
 }

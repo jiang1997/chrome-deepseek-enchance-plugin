@@ -89,9 +89,7 @@ export function isInExcludedUI(node: Node | null): boolean {
   return !!el.closest("aside, nav, header, [role='search'], [role='dialog'], [role='menu'], [data-dse-tree]");
 }
 
-export type ValidateResult =
-  | { ok: true; snapshot: SelectionSnapshot }
-  | { ok: false; reason: SelectionRejectReason };
+export type ValidateResult = { ok: true; snapshot: SelectionSnapshot } | { ok: false; reason: SelectionRejectReason };
 
 /**
  * Validate the current Selection and snapshot its text, viewport rect and initial DOM provenance.
@@ -129,7 +127,10 @@ export function validateSelection(sel: Selection | null): ValidateResult {
   // Only label text contained in one message, independently of drag direction.
   // Multiple ranges or a common ancestor outside a message have no single source.
   const context = resolveMessageContext(sel.rangeCount === 1 ? range.commonAncestorContainer : null);
-  const messageId = sel.rangeCount === 1 ? findMessageItem(range.commonAncestorContainer)?.getAttribute(MESSAGE_ITEM_ATTR) ?? undefined : undefined;
+  const messageId =
+    sel.rangeCount === 1
+      ? (findMessageItem(range.commonAncestorContainer)?.getAttribute(MESSAGE_ITEM_ATTR) ?? undefined)
+      : undefined;
   return { ok: true, snapshot: { text, rect, context, messageId } };
 }
 
