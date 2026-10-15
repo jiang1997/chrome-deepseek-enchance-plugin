@@ -10,7 +10,9 @@ const extension = path.resolve("dist");
 const artifacts = path.resolve("artifacts/tree-check");
 await mkdir(artifacts, { recursive: true });
 const profile = await mkdtemp(path.join(tmpdir(), "dse-tree-"));
+/** @type {import('@playwright/test').BrowserContext | undefined} */
 let context;
+/** @type {string[]} */
 const errors = [];
 try {
   context = await chromium.launchPersistentContext(profile, {
@@ -24,6 +26,7 @@ try {
     /<script type="module">[\s\S]*?<\/script>/,
     "",
   );
+  /** @param {number} id @param {number} parent @param {'USER' | 'ASSISTANT'} role @param {string} content */
   const message = (id, parent, role, content) => ({
     message_id: id,
     parent_id: parent,
@@ -60,25 +63,40 @@ try {
   // Quote from a partial virtual window before opening the tree: history supplies #2.
   const originalMessages = await page.locator(".ds-virtual-list-visible-items").innerHTML();
   await page.evaluate(() => {
-    for (const id of ["1", "2"]) document.querySelector(`[data-virtual-list-item-key="${id}"]`).remove();
-    document
-      .querySelector(".ds-virtual-list-visible-items")
-      .style.setProperty("--dsl-virtual-list-transform-y", "500px");
+    for (const id of ["1", "2"]) {
+      const item = document.querySelector(`[data-virtual-list-item-key="${id}"]`);
+      if (!item) throw new Error(`Fixture is missing message ${id}`);
+      item.remove();
+    }
+    const items = document.querySelector(".ds-virtual-list-visible-items");
+    const answer = document.querySelector('[data-virtual-list-item-key="4"] .ds-markdown');
+    const selection = window.getSelection();
+    if (!(items instanceof HTMLElement) || !answer || !selection) throw new Error("Invalid quote fixture");
+    items.style.setProperty("--dsl-virtual-list-transform-y", "500px");
     const range = document.createRange();
-    range.selectNodeContents(document.querySelector('[data-virtual-list-item-key="4"] .ds-markdown'));
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
+    range.selectNodeContents(answer);
+    selection.removeAllRanges();
+    selection.addRange(range);
     document.dispatchEvent(new Event("selectionchange"));
   });
   await page.locator(".dse-popup-preview").filter({ hasText: "Selected assistant #2:" }).waitFor();
   assert.equal(requests, 1);
   await page.getByRole("button", { name: "Quote", exact: true }).click();
-  await page.waitForFunction(() => document.querySelector("#composer").value.includes("[Quote · assistant #2]"));
+  await page.waitForFunction(() => {
+    const composer = document.querySelector("#composer");
+    return composer instanceof HTMLTextAreaElement && composer.value.includes("[Quote · assistant #2]");
+  });
   await page.evaluate((html) => {
-    window.getSelection().removeAllRanges();
-    document.querySelector(".ds-virtual-list-visible-items").innerHTML = html;
-    document.querySelector(".ds-virtual-list-visible-items").style.setProperty("--dsl-virtual-list-transform-y", "0px");
-    document.querySelector("#composer").value = "";
+    const selection = window.getSelection();
+    const items = document.querySelector(".ds-virtual-list-visible-items");
+    const composer = document.querySelector("textarea#composer");
+    if (!selection || !(items instanceof HTMLElement) || !(composer instanceof HTMLTextAreaElement)) {
+      throw new Error("Invalid composer fixture");
+    }
+    selection.removeAllRanges();
+    items.innerHTML = html;
+    items.style.setProperty("--dsl-virtual-list-transform-y", "0px");
+    composer.value = "";
   }, originalMessages);
   await page.getByRole("button", { name: "Conversation tree", exact: true }).click();
   await page.locator("[data-dse-tree] .node").nth(4).waitFor();
@@ -86,9 +104,9 @@ try {
   assert.equal(await page.locator("[data-dse-tree] .node.active").count(), 4);
   assert.equal(requests, 1);
   await page.locator('[data-dse-tree] .node[data-id="5"]').click();
-  assert.match(await page.locator("[data-dse-tree] .preview-text").textContent(), /<script>/);
-  assert.equal(await page.evaluate(() => window.bad), undefined);
-  assert.match(await page.locator("[data-dse-tree] .preview-label").textContent(), /Other branches/);
+  assert.match((await page.locator("[data-dse-tree] .preview-text").textContent()) ?? "", /<script>/);
+  assert.equal(await page.evaluate(() => ("bad" in window ? window.bad : undefined)), undefined);
+  assert.match((await page.locator("[data-dse-tree] .preview-label").textContent()) ?? "", /Other branches/);
   await page.getByRole("searchbox", { name: "Search conversation messages" }).fill("closure");
   assert.equal(await page.locator("[data-dse-tree] .node.match").count(), 2);
   await page.getByRole("searchbox", { name: "Search conversation messages" }).fill("");
@@ -108,7 +126,9 @@ try {
   // Same-document navigation clears history and rejects stale responses.
   await page.evaluate(() => {
     history.pushState({}, "", "/a/chat/s/abcdef-5678");
-    document.querySelector("main").append(document.createElement("div"));
+    const main = document.querySelector("main");
+    if (!main) throw new Error("Fixture is missing main");
+    main.append(document.createElement("div"));
   });
   await page.getByText("Could not load full history. Showing rendered messages; try refreshing.").waitFor();
   assert.equal(await page.locator("[data-dse-tree] .node").count(), 4);
@@ -123,6 +143,7 @@ try {
     "Production extension check passed: history bridge, quote ordinals, shared cache, branches, search, preview, navigation, fallback, themes, keyboard and message jump.",
   );
 } catch (error) {
+  /** @type {Promise<unknown>[]} */
   const diagnostics = [
     writeFile(
       path.join(artifacts, "failure.txt"),

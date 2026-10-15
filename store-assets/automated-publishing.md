@@ -28,6 +28,10 @@ summary contains the API result, which can be `PENDING_REVIEW` rather than live.
 Store listing text, screenshots, privacy fields and visibility remain dashboard
 configuration. No automatic tag or main-push publishing is configured.
 
+The package build runs `npm run typecheck`, including strict JavaScript checking
+of the packaging/publishing scripts and their JavaScript tests. Status-only queries
+still run without installing development dependencies.
+
 ## Configuration
 
 Non-secret project, publisher and extension identifiers live in

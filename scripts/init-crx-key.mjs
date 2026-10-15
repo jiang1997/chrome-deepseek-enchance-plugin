@@ -2,6 +2,7 @@ import { generateKeyPairSync } from "node:crypto";
 import { access, chmod, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isMissingFile } from "./lib/validation.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const defaultKeyPath = path.join(root, "keys", "deepseek-enhancer.pem");
@@ -14,7 +15,7 @@ try {
   console.log("No new key generated; the existing extension ID stays the same.");
   process.exit(0);
 } catch (error) {
-  if (error?.code !== "ENOENT") throw error;
+  if (!isMissingFile(error)) throw error;
 }
 
 await mkdir(path.dirname(keyPath), { recursive: true });

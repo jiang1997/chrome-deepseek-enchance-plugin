@@ -2,10 +2,29 @@ import { readFile, appendFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { requireRecord, requireString, readVersion } from "./lib/validation.mjs";
+
+/**
+ * @typedef {(url: string, options: RequestInit) => Promise<Pick<Response, 'ok' | 'status' | 'text'>>} StoreFetch
+ * @typedef {{
+ *   submittedItemRevisionStatus?: { state?: string | undefined } | undefined,
+ *   lastAsyncUploadState?: string | undefined,
+ *   publishedItemRevisionStatus?: { distributionChannels?: { crxVersion?: string | undefined }[] | undefined } | undefined
+ * }} StoreStatus
+ * @typedef {{
+ *   mode: string, token: string | undefined, publisherId: string, extensionId: string,
+ *   version?: string | undefined, zip?: Uint8Array<ArrayBuffer> | undefined,
+ *   fetchImpl?: StoreFetch, sleep?: (ms: number) => Promise<void>, maxPolls?: number
+ * }} StoreOptions
+ * @typedef {{ mode: 'status', status: StoreStatus } |
+ *   { mode: 'upload', version: string, uploadState: string } |
+ *   { mode: 'publish' | 'staged', version: string, uploadState: string, submission: Record<string, unknown> }} StoreResult
+ */
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const modes = ["status", "upload", "publish", "staged"];
 
+/** @param {string} left @param {string} right */
 export function compareVersions(left, right) {
   const a = left.split(".").map(Number);
   const b = right.split(".").map(Number);
@@ -16,7 +35,38 @@ export function compareVersions(left, right) {
   return 0;
 }
 
+/** @param {unknown} value @param {string} label */
+function optionalString(value, label) {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new Error(`${label} must be a string`);
+  return value;
+}
+
+/** Validate fields used for release decisions; preserve the rest of the status response.
+ * @param {Record<string, unknown>} status
+ * @returns {StoreStatus}
+ */
+function validateStatus(status) {
+  optionalString(status.lastAsyncUploadState, "Last upload state");
+  if (status.submittedItemRevisionStatus !== undefined) {
+    const submitted = requireRecord(status.submittedItemRevisionStatus, "Submitted revision");
+    optionalString(submitted.state, "Submitted revision state");
+  }
+  if (status.publishedItemRevisionStatus !== undefined) {
+    const published = requireRecord(status.publishedItemRevisionStatus, "Published revision");
+    const channels = published.distributionChannels;
+    if (channels !== undefined) {
+      if (!Array.isArray(channels)) throw new Error("Distribution channels must be an array");
+      for (const channel of channels) {
+        optionalString(requireRecord(channel, "Distribution channel").crxVersion, "Published version");
+      }
+    }
+  }
+  return /** @type {StoreStatus} */ (status);
+}
+
 // fetch and sleep are injectable so tests never contact the store.
+/** @param {StoreOptions} options @returns {Promise<StoreResult>} */
 export async function runStoreOperation({
   mode,
   token,
@@ -28,36 +78,42 @@ export async function runStoreOperation({
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   maxPolls = 60,
 }) {
-  if (!modes.includes(mode)) throw new Error(`Choose a mode: ${modes.join(", ")}`);
+  if (mode !== "status" && mode !== "upload" && mode !== "publish" && mode !== "staged") {
+    throw new Error(`Choose a mode: ${modes.join(", ")}`);
+  }
   if (!token) throw new Error("CWS_ACCESS_TOKEN is required");
+  const accessToken = token;
   if (!/^[a-p]{32}$/.test(extensionId) || !/^[a-zA-Z0-9-]+$/.test(publisherId)) {
     throw new Error("Invalid publisher or extension ID");
   }
   const item = `publishers/${publisherId}/items/${extensionId}`;
   const api = `https://chromewebstore.googleapis.com/v2/${item}`;
+  /** @param {string} url @param {RequestInit} [options] */
   async function request(url, options = {}) {
+    const headers = new Headers(options.headers);
+    headers.set("Authorization", `Bearer ${accessToken}`);
     const response = await fetchImpl(url, {
       ...options,
-      headers: { ...options.headers, Authorization: `Bearer ${token}` },
+      headers,
       signal: AbortSignal.timeout(120_000),
     });
     const text = await response.text();
     // Never include a token, even if a server/proxy echoes it in an error.
-    const safeText = text.replaceAll(token, "[REDACTED]");
+    const safeText = text.replaceAll(accessToken, "[REDACTED]");
     if (!response.ok) throw new Error(`Chrome Web Store HTTP ${response.status}: ${safeText}`);
-    return JSON.parse(safeText);
+    return requireRecord(JSON.parse(safeText), "Chrome Web Store response");
   }
 
-  const status = await request(`${api}:fetchStatus`);
+  const status = validateStatus(await request(`${api}:fetchStatus`));
   if (mode === "status") return { mode, status };
-  if (!zip?.length || !/^\d+(?:\.\d+){0,3}$/.test(version)) {
+  if (!zip?.length || !version || !/^\d+(?:\.\d+){0,3}$/.test(version)) {
     throw new Error("A store ZIP and valid manifest version are required");
   }
   const submitted = status.submittedItemRevisionStatus;
-  if (["PENDING_REVIEW", "STAGED"].includes(submitted?.state)) {
+  if (submitted && ["PENDING_REVIEW", "STAGED"].includes(submitted.state ?? "")) {
     throw new Error(`Existing submission is ${submitted.state}; resolve it in the dashboard first`);
   }
-  if (["IN_PROGRESS", "UPLOAD_IN_PROGRESS"].includes(status.lastAsyncUploadState)) {
+  if (["IN_PROGRESS", "UPLOAD_IN_PROGRESS"].includes(status.lastAsyncUploadState ?? "")) {
     throw new Error("An existing upload is still processing; wait before uploading again");
   }
   for (const channel of status.publishedItemRevisionStatus?.distributionChannels ?? []) {
@@ -70,16 +126,21 @@ export async function runStoreOperation({
     headers: { "Content-Type": "application/zip" },
     body: zip,
   });
-  let uploadState = upload.uploadState;
-  for (let attempt = 0; ["IN_PROGRESS", "UPLOAD_IN_PROGRESS"].includes(uploadState) && attempt < maxPolls; attempt++) {
+  let uploadState = optionalString(upload.uploadState, "Upload state");
+  for (
+    let attempt = 0;
+    ["IN_PROGRESS", "UPLOAD_IN_PROGRESS"].includes(uploadState ?? "") && attempt < maxPolls;
+    attempt++
+  ) {
     await sleep(5000);
-    uploadState = (await request(`${api}:fetchStatus`)).lastAsyncUploadState;
+    uploadState = validateStatus(await request(`${api}:fetchStatus`)).lastAsyncUploadState;
   }
-  if (!["SUCCEEDED", "UPLOAD_SUCCESS"].includes(uploadState)) {
+  if (!uploadState || !["SUCCEEDED", "UPLOAD_SUCCESS"].includes(uploadState)) {
     throw new Error(`Upload did not succeed (${uploadState ?? "unknown"}); no publish request was sent`);
   }
-  if (upload.crxVersion && upload.crxVersion !== version) {
-    throw new Error(`Uploaded version ${upload.crxVersion} does not match ${version}; no publish request was sent`);
+  const uploadedVersion = optionalString(upload.crxVersion, "Uploaded version");
+  if (uploadedVersion && uploadedVersion !== version) {
+    throw new Error(`Uploaded version ${uploadedVersion} does not match ${version}; no publish request was sent`);
   }
   if (mode === "upload") return { mode, version, uploadState };
   const submission = await request(`${api}:publish`, {
@@ -95,22 +156,33 @@ export async function runStoreOperation({
 }
 
 async function main() {
-  const config = JSON.parse(await readFile(path.join(root, "scripts/cws-config.json"), "utf8"));
+  const config = requireRecord(
+    JSON.parse(await readFile(path.join(root, "scripts/cws-config.json"), "utf8")),
+    "Publishing configuration",
+  );
+  const publisherId = requireString(config.publisherId, "Publisher ID");
+  const extensionId = requireString(config.extensionId, "Extension ID");
   const mode = process.env.CWS_MODE ?? "status";
   let version;
   let zip;
   if (mode !== "status") {
-    const manifest = JSON.parse(await readFile(path.join(root, "manifest.json"), "utf8"));
-    const pkg = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
-    const built = JSON.parse(await readFile(path.join(root, "dist/manifest.json"), "utf8"));
-    version = manifest.version;
-    if (pkg.version !== version || built.version !== version) {
+    version = await readVersion(path.join(root, "manifest.json"));
+    const packageVersion = await readVersion(path.join(root, "package.json"));
+    const builtVersion = await readVersion(path.join(root, "dist/manifest.json"));
+    if (packageVersion !== version || builtVersion !== version) {
       throw new Error("package.json, manifest.json and dist/manifest.json versions must match");
     }
     zip = await readFile(path.join(root, `release/deepseek-enhancer-${version}-unpacked.zip`));
     console.log(`Package version: ${version}; SHA256: ${createHash("sha256").update(zip).digest("hex")}`);
   }
-  const result = await runStoreOperation({ ...config, mode, version, zip, token: process.env.CWS_ACCESS_TOKEN });
+  const result = await runStoreOperation({
+    publisherId,
+    extensionId,
+    mode,
+    version,
+    zip,
+    token: process.env.CWS_ACCESS_TOKEN,
+  });
   const output = JSON.stringify(result, null, 2);
   console.log(output);
   if (process.env.GITHUB_STEP_SUMMARY) {
@@ -120,7 +192,7 @@ async function main() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
-    console.error(error.message);
+    console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   });
 }

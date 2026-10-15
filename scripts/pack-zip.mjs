@@ -1,13 +1,15 @@
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile, readdir, stat } from "node:fs/promises";
+import { mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import yazl from "yazl";
+import { isMissingFile, readVersion } from "./lib/validation.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = path.join(root, "dist");
 const manifestPath = path.join(distDir, "manifest.json");
 
+/** @param {string} directory @returns {Promise<string[]>} */
 async function collectFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
@@ -21,10 +23,12 @@ async function collectFiles(directory) {
   return files;
 }
 
+/** @param {string[]} files @param {string} outputPath */
 async function createZip(files, outputPath) {
   const zip = new yazl.ZipFile();
   const output = createWriteStream(outputPath, { mode: 0o644 });
 
+  /** @type {Promise<void>} */
   const completion = new Promise((resolve, reject) => {
     output.once("close", resolve);
     output.once("error", reject);
@@ -43,17 +47,14 @@ async function createZip(files, outputPath) {
 
 async function main() {
   const manifestStat = await stat(manifestPath).catch((error) => {
-    if (error?.code === "ENOENT") {
+    if (isMissingFile(error)) {
       throw new Error(`Cannot find ${manifestPath}; run npm run build first`);
     }
     throw error;
   });
   if (!manifestStat.isFile()) throw new Error(`${manifestPath} is not a file`);
 
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  if (typeof manifest.version !== "string" || !/^\d+(?:\.\d+){0,3}$/.test(manifest.version)) {
-    throw new Error(`Invalid manifest version: ${String(manifest.version)}`);
-  }
+  const version = await readVersion(manifestPath);
 
   const files = await collectFiles(distDir);
   if (!files.some((filePath) => path.relative(distDir, filePath) === "manifest.json")) {
@@ -61,7 +62,7 @@ async function main() {
   }
 
   const releaseDir = path.join(root, "release");
-  const zipPath = path.join(releaseDir, `deepseek-enhancer-${manifest.version}-unpacked.zip`);
+  const zipPath = path.join(releaseDir, `deepseek-enhancer-${version}-unpacked.zip`);
   await mkdir(releaseDir, { recursive: true });
   await createZip(files, zipPath);
 

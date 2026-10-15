@@ -2,22 +2,25 @@ import { chmod, mkdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crx3 from "crx3";
+import { isMissingFile, readVersion } from "./lib/validation.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = path.join(root, "dist", "manifest.json");
 const defaultKeyPath = path.join(root, "keys", "deepseek-enhancer.pem");
 const keyPath = path.resolve(process.env.CRX_KEY_PATH || defaultKeyPath);
 
+/** @param {string} filePath @param {string} message */
 async function requireFile(filePath, message) {
   try {
     const fileStat = await stat(filePath);
     if (!fileStat.isFile()) throw new Error(`${filePath} is not a file`);
   } catch (error) {
-    if (error?.code === "ENOENT") throw new Error(message);
+    if (isMissingFile(error)) throw new Error(message);
     throw error;
   }
 }
 
+/** @param {Buffer} buffer */
 function listZipEntries(buffer) {
   const eocdSignature = 0x06054b50;
   const centralSignature = 0x02014b50;
@@ -62,6 +65,7 @@ function listZipEntries(buffer) {
   return entries;
 }
 
+/** @param {string} crxPath @param {string} zipPath */
 async function validateArtifacts(crxPath, zipPath) {
   const [crx, zip] = await Promise.all([readFile(crxPath), readFile(zipPath)]);
   if (crx.length < 12 || crx.toString("ascii", 0, 4) !== "Cr24") {
@@ -95,13 +99,10 @@ async function main() {
   );
   await chmod(keyPath, 0o600);
 
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  if (typeof manifest.version !== "string" || !/^\d+(?:\.\d+){0,3}$/.test(manifest.version)) {
-    throw new Error(`Invalid manifest version: ${String(manifest.version)}`);
-  }
+  const version = await readVersion(manifestPath);
 
   const releaseDir = path.join(root, "release");
-  const artifactBase = `deepseek-enhancer-${manifest.version}`;
+  const artifactBase = `deepseek-enhancer-${version}`;
   const crxPath = path.join(releaseDir, `${artifactBase}.crx`);
   const zipPath = path.join(releaseDir, `${artifactBase}.zip`);
   await mkdir(releaseDir, { recursive: true });

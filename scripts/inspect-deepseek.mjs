@@ -47,7 +47,7 @@ try {
         tag: el.tagName.toLowerCase(),
         role: el.getAttribute("role"),
         ariaLabel: el.getAttribute("aria-label"),
-        placeholder: el.getAttribute("placeholder") || el.placeholder || null,
+        placeholder: el.getAttribute("placeholder"),
         contenteditable: el.getAttribute("contenteditable"),
         id: el.id || null,
         class: el.className?.toString?.().slice(0, 120) || null,

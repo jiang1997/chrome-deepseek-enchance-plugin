@@ -104,7 +104,8 @@ Verified so far: real-page quote flow and English UI. Not yet fully covered: eve
 - `npm run lint:fix`: apply safe lint fixes without formatting files.
 - `npm test`: run unit tests with Vitest.
 - `npm run check:tree`: load the production extension in Chromium against mocked DeepSeek history and verify the tree UI (run `npm run build` first).
-- `npm run typecheck`: check TypeScript types.
+- `npm run typecheck`: check extension/test TypeScript types, then JavaScript scripts and tests.
+- `npm run typecheck:scripts`: check `scripts/**/*.mjs` and `tests/**/*.test.mjs` using strict TypeScript `checkJs` and JSDoc types, without emitting files.
 - `npm run build`: create the production extension in `dist/`.
 - `npm run inspect:deepseek`: diagnose the live DeepSeek page structure; screenshots go to `artifacts/`.
 - `npm run pack:zip`: build the store upload ZIP.
