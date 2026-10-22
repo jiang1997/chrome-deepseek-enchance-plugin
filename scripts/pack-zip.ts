@@ -3,14 +3,13 @@ import { mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import yazl from "yazl";
-import { isMissingFile, readVersion } from "./lib/validation.mjs";
+import { isMissingFile, readVersion } from "./lib/validation.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = path.join(root, "dist");
 const manifestPath = path.join(distDir, "manifest.json");
 
-/** @param {string} directory @returns {Promise<string[]>} */
-async function collectFiles(directory) {
+async function collectFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
 
@@ -23,13 +22,11 @@ async function collectFiles(directory) {
   return files;
 }
 
-/** @param {string[]} files @param {string} outputPath */
-async function createZip(files, outputPath) {
+async function createZip(files: string[], outputPath: string) {
   const zip = new yazl.ZipFile();
   const output = createWriteStream(outputPath, { mode: 0o644 });
 
-  /** @type {Promise<void>} */
-  const completion = new Promise((resolve, reject) => {
+  const completion = new Promise<void>((resolve, reject) => {
     output.once("close", resolve);
     output.once("error", reject);
     zip.outputStream.once("error", reject);

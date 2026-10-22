@@ -6,36 +6,36 @@
   "description": "DeepSeek web enhancement extension: quote selections into the composer (Manifest V3)",
   "type": "module",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=26.0.0"
   },
   "scripts": {
     "dev": "vite",
-    "build": "biome ci && npm run typecheck && vite build && node scripts/copy-license.mjs",
+    "build": "biome ci && npm run typecheck && vite build && node scripts/copy-license.ts",
     "preview": "vite preview",
     "lint": "biome lint",
     "lint:fix": "biome lint --write",
     "format": "biome format --write",
     "format:check": "biome format",
     "test": "vitest run",
-    "inspect:deepseek": "node scripts/inspect-deepseek.mjs",
+    "inspect:deepseek": "node scripts/inspect-deepseek.ts",
     "typecheck": "tsc --noEmit && npm run typecheck:scripts",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json",
-    "init:crx-key": "node scripts/init-crx-key.mjs",
-    "pack:zip": "npm run build && node scripts/pack-zip.mjs",
-    "store:release": "node scripts/publish-cws.mjs",
-    "pack:crx": "npm run build && node scripts/pack-crx.mjs",
-    "check:tree": "node scripts/check-tree.mjs"
+    "init:crx-key": "node scripts/init-crx-key.ts",
+    "pack:zip": "npm run build && node scripts/pack-zip.ts",
+    "store:release": "node scripts/publish-cws.ts",
+    "pack:crx": "npm run build && node scripts/pack-crx.ts",
+    "check:tree": "node scripts/check-tree.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@crxjs/vite-plugin": "^3.0.0",
     "@playwright/test": "^1.63.0",
     "@types/chrome": "^0.0.280",
-    "@types/node": "^22.20.5",
+    "@types/node": "^26.6.5",
     "@types/yazl": "^3.3.1",
     "crx3": "^2.0.0",
     "jsdom": "^24.0.0",
-    "typescript": "^5.5.0",
+    "typescript": "^5.9.3",
     "vite": "^8.3.2",
     "vitest": "^5.0.3",
     "yazl": "^3.3.1"

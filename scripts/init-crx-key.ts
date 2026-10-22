@@ -2,7 +2,7 @@ import { generateKeyPairSync } from "node:crypto";
 import { access, chmod, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isMissingFile } from "./lib/validation.mjs";
+import { isMissingFile } from "./lib/validation.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const defaultKeyPath = path.join(root, "keys", "deepseek-enhancer.pem");

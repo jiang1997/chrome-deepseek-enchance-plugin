@@ -1,4 +1,4 @@
-import { chromium } from "@playwright/test";
+import { chromium, type BrowserContext } from "@playwright/test";
 import assert from "node:assert/strict";
 import { readFile, writeFile, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,10 +10,8 @@ const extension = path.resolve("dist");
 const artifacts = path.resolve("artifacts/tree-check");
 await mkdir(artifacts, { recursive: true });
 const profile = await mkdtemp(path.join(tmpdir(), "dse-tree-"));
-/** @type {import('@playwright/test').BrowserContext | undefined} */
-let context;
-/** @type {string[]} */
-const errors = [];
+let context: BrowserContext | undefined;
+const errors: string[] = [];
 try {
   context = await chromium.launchPersistentContext(profile, {
     channel: "chromium",
@@ -26,8 +24,7 @@ try {
     /<script type="module">[\s\S]*?<\/script>/,
     "",
   );
-  /** @param {number} id @param {number} parent @param {'USER' | 'ASSISTANT'} role @param {string} content */
-  const message = (id, parent, role, content) => ({
+  const message = (id: number, parent: number, role: "USER" | "ASSISTANT", content: string) => ({
     message_id: id,
     parent_id: parent,
     role,
@@ -143,8 +140,7 @@ try {
     "Production extension check passed: history bridge, quote ordinals, shared cache, branches, search, preview, navigation, fallback, themes, keyboard and message jump.",
   );
 } catch (error) {
-  /** @type {Promise<unknown>[]} */
-  const diagnostics = [
+  const diagnostics: Promise<unknown>[] = [
     writeFile(
       path.join(artifacts, "failure.txt"),
       `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n\nPage errors:\n${errors.join("\n")}\n`,

@@ -2,30 +2,46 @@ import { readFile, appendFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { requireRecord, requireString, readVersion } from "./lib/validation.mjs";
+import { requireRecord, requireString, readVersion } from "./lib/validation.ts";
 
-/**
- * @typedef {(url: string, options: RequestInit) => Promise<Pick<Response, 'ok' | 'status' | 'text'>>} StoreFetch
- * @typedef {{
- *   submittedItemRevisionStatus?: { state?: string | undefined } | undefined,
- *   lastAsyncUploadState?: string | undefined,
- *   publishedItemRevisionStatus?: { distributionChannels?: { crxVersion?: string | undefined }[] | undefined } | undefined
- * }} StoreStatus
- * @typedef {{
- *   mode: string, token: string | undefined, publisherId: string, extensionId: string,
- *   version?: string | undefined, zip?: Uint8Array<ArrayBuffer> | undefined,
- *   fetchImpl?: StoreFetch, sleep?: (ms: number) => Promise<void>, maxPolls?: number
- * }} StoreOptions
- * @typedef {{ mode: 'status', status: StoreStatus } |
- *   { mode: 'upload', version: string, uploadState: string } |
- *   { mode: 'publish' | 'staged', version: string, uploadState: string, submission: Record<string, unknown> }} StoreResult
- */
+export type StoreFetch = (url: string, options: RequestInit) => Promise<Pick<Response, "ok" | "status" | "text">>;
+
+type StoreStatus = {
+  submittedItemRevisionStatus?: { state?: string | undefined } | undefined;
+  lastAsyncUploadState?: string | undefined;
+  publishedItemRevisionStatus?:
+    | {
+        distributionChannels?: { crxVersion?: string | undefined }[] | undefined;
+      }
+    | undefined;
+};
+
+type StoreOptions = {
+  mode: string;
+  token: string | undefined;
+  publisherId: string;
+  extensionId: string;
+  version?: string | undefined;
+  zip?: Uint8Array<ArrayBuffer> | undefined;
+  fetchImpl?: StoreFetch;
+  sleep?: (ms: number) => Promise<void>;
+  maxPolls?: number;
+};
+
+type StoreResult =
+  | { mode: "status"; status: StoreStatus }
+  | { mode: "upload"; version: string; uploadState: string }
+  | {
+      mode: "publish" | "staged";
+      version: string;
+      uploadState: string;
+      submission: Record<string, unknown>;
+    };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const modes = ["status", "upload", "publish", "staged"];
 
-/** @param {string} left @param {string} right */
-export function compareVersions(left, right) {
+export function compareVersions(left: string, right: string) {
   const a = left.split(".").map(Number);
   const b = right.split(".").map(Number);
   for (let i = 0; i < 4; i++) {
@@ -35,18 +51,14 @@ export function compareVersions(left, right) {
   return 0;
 }
 
-/** @param {unknown} value @param {string} label */
-function optionalString(value, label) {
+function optionalString(value: unknown, label: string) {
   if (value === undefined) return undefined;
   if (typeof value !== "string") throw new Error(`${label} must be a string`);
   return value;
 }
 
-/** Validate fields used for release decisions; preserve the rest of the status response.
- * @param {Record<string, unknown>} status
- * @returns {StoreStatus}
- */
-function validateStatus(status) {
+/** Validate fields used for release decisions; preserve the rest of the status response. */
+function validateStatus(status: Record<string, unknown>): StoreStatus {
   optionalString(status.lastAsyncUploadState, "Last upload state");
   if (status.submittedItemRevisionStatus !== undefined) {
     const submitted = requireRecord(status.submittedItemRevisionStatus, "Submitted revision");
@@ -62,11 +74,10 @@ function validateStatus(status) {
       }
     }
   }
-  return /** @type {StoreStatus} */ (status);
+  return status as StoreStatus;
 }
 
 // fetch and sleep are injectable so tests never contact the store.
-/** @param {StoreOptions} options @returns {Promise<StoreResult>} */
 export async function runStoreOperation({
   mode,
   token,
@@ -77,7 +88,7 @@ export async function runStoreOperation({
   fetchImpl = fetch,
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   maxPolls = 60,
-}) {
+}: StoreOptions): Promise<StoreResult> {
   if (mode !== "status" && mode !== "upload" && mode !== "publish" && mode !== "staged") {
     throw new Error(`Choose a mode: ${modes.join(", ")}`);
   }
@@ -88,8 +99,7 @@ export async function runStoreOperation({
   }
   const item = `publishers/${publisherId}/items/${extensionId}`;
   const api = `https://chromewebstore.googleapis.com/v2/${item}`;
-  /** @param {string} url @param {RequestInit} [options] */
-  async function request(url, options = {}) {
+  async function request(url: string, options: RequestInit = {}) {
     const headers = new Headers(options.headers);
     headers.set("Authorization", `Bearer ${accessToken}`);
     const response = await fetchImpl(url, {
@@ -163,8 +173,8 @@ async function main() {
   const publisherId = requireString(config.publisherId, "Publisher ID");
   const extensionId = requireString(config.extensionId, "Extension ID");
   const mode = process.env.CWS_MODE ?? "status";
-  let version;
-  let zip;
+  let version: string | undefined;
+  let zip: Uint8Array<ArrayBuffer> | undefined;
   if (mode !== "status") {
     version = await readVersion(path.join(root, "manifest.json"));
     const packageVersion = await readVersion(path.join(root, "package.json"));

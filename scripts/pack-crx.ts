@@ -2,15 +2,14 @@ import { chmod, mkdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crx3 from "crx3";
-import { isMissingFile, readVersion } from "./lib/validation.mjs";
+import { isMissingFile, readVersion } from "./lib/validation.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = path.join(root, "dist", "manifest.json");
 const defaultKeyPath = path.join(root, "keys", "deepseek-enhancer.pem");
 const keyPath = path.resolve(process.env.CRX_KEY_PATH || defaultKeyPath);
 
-/** @param {string} filePath @param {string} message */
-async function requireFile(filePath, message) {
+async function requireFile(filePath: string, message: string) {
   try {
     const fileStat = await stat(filePath);
     if (!fileStat.isFile()) throw new Error(`${filePath} is not a file`);
@@ -20,8 +19,7 @@ async function requireFile(filePath, message) {
   }
 }
 
-/** @param {Buffer} buffer */
-function listZipEntries(buffer) {
+function listZipEntries(buffer: Buffer) {
   const eocdSignature = 0x06054b50;
   const centralSignature = 0x02014b50;
   const minimumEocdSize = 22;
@@ -65,8 +63,7 @@ function listZipEntries(buffer) {
   return entries;
 }
 
-/** @param {string} crxPath @param {string} zipPath */
-async function validateArtifacts(crxPath, zipPath) {
+async function validateArtifacts(crxPath: string, zipPath: string) {
   const [crx, zip] = await Promise.all([readFile(crxPath), readFile(zipPath)]);
   if (crx.length < 12 || crx.toString("ascii", 0, 4) !== "Cr24") {
     throw new Error("CRX validation failed: invalid file header");

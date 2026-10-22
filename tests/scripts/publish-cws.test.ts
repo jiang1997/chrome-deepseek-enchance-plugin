@@ -1,9 +1,7 @@
 // @vitest-environment node
-import { describe, it, expect, vi } from "vitest";
-import { compareVersions, runStoreOperation } from "../scripts/publish-cws.mjs";
+import { describe, it, expect, vi, type Mock } from "vitest";
+import { compareVersions, runStoreOperation, type StoreFetch } from "../../scripts/publish-cws.ts";
 import assert from "node:assert/strict";
-
-/** @typedef {import('../scripts/publish-cws.mjs').StoreFetch} StoreFetch */
 
 const base = {
   mode: "publish",
@@ -17,27 +15,23 @@ const base = {
 const published = {
   publishedItemRevisionStatus: { distributionChannels: [{ crxVersion: "0.1.0" }] },
 };
-/** @param {...unknown} values */
-function responses(...values) {
-  /** @type {import('vitest').Mock<StoreFetch>} */
-  const mock = vi.fn();
+function responses(...values: unknown[]) {
+  const mock = vi.fn<StoreFetch>();
   for (const value of values) {
     mock.mockResolvedValueOnce(new Response(JSON.stringify(value)));
   }
   return mock;
 }
 
-/** @param {ReturnType<typeof responses>} mock @param {number} index */
-function recordedCall(mock, index) {
+function recordedCall(mock: Mock<StoreFetch>, index: number) {
   const call = mock.mock.calls[index];
   assert.ok(call, `Expected request ${index + 1}`);
   return call;
 }
 
-/** @param {RequestInit} request */
-function jsonBody(request) {
+function jsonBody(request: RequestInit): unknown {
   assert.ok(typeof request.body === "string");
-  return /** @type {unknown} */ (JSON.parse(request.body));
+  return JSON.parse(request.body);
 }
 
 describe("Chrome Web Store release", () => {

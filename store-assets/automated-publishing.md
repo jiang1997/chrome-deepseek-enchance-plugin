@@ -28,9 +28,10 @@ summary contains the API result, which can be `PENDING_REVIEW` rather than live.
 Store listing text, screenshots, privacy fields and visibility remain dashboard
 configuration. No automatic tag or main-push publishing is configured.
 
-The package build runs `npm run typecheck`, including strict JavaScript checking
-of the packaging/publishing scripts and their JavaScript tests. Status-only queries
-still run without installing development dependencies.
+The workflow uses Node.js 26 from `.nvmrc` to execute TypeScript scripts directly.
+The package build runs `npm run typecheck`, including strict NodeNext checking
+of the packaging/publishing scripts and their tests. Status-only queries still
+run without installing development dependencies or a TypeScript runner.
 
 ## Configuration
 

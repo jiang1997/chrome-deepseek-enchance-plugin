@@ -58,6 +58,8 @@ Click either screenshot to view the full-size image.
 
 ## Install from a ZIP file
 
+Building from source requires Node.js 26 or newer. Run `nvm use` to select the version in `.nvmrc` if you use nvm.
+
 ```sh
 npm install
 npm run pack:zip
@@ -104,8 +106,8 @@ Verified so far: real-page quote flow and English UI. Not yet fully covered: eve
 - `npm run lint:fix`: apply safe lint fixes without formatting files.
 - `npm test`: run unit tests with Vitest.
 - `npm run check:tree`: load the production extension in Chromium against mocked DeepSeek history and verify the tree UI (run `npm run build` first).
-- `npm run typecheck`: check extension/test TypeScript types, then JavaScript scripts and tests.
-- `npm run typecheck:scripts`: check `scripts/**/*.mjs` and `tests/**/*.test.mjs` using strict TypeScript `checkJs` and JSDoc types, without emitting files.
+- `npm run typecheck`: check extension/test TypeScript types, then tooling TypeScript types.
+- `npm run typecheck:scripts`: check `scripts/**/*.ts` and `tests/scripts/**/*.ts` using strict NodeNext settings, without emitting files.
 - `npm run build`: create the production extension in `dist/`.
 - `npm run inspect:deepseek`: diagnose the live DeepSeek page structure; screenshots go to `artifacts/`.
 - `npm run pack:zip`: build the store upload ZIP.
@@ -115,6 +117,8 @@ Biome formats supported files under `src/`, `tests/`, and `scripts/`, plus root 
 CI runs `check:tree` after building the extension and installing Chromium. The check uses mocked DeepSeek responses and requires no account. For local setup, run `npx playwright install chromium` first. Screenshots are saved in `artifacts/tree-check/`; failures also save an error report and `trace.zip`. CI uploads these diagnostics with the run log as `tree-check-diagnostics` on failure (retained for 7 days). Open a trace with `npx playwright show-trace artifacts/tree-check/trace.zip`.
 
 Store listing sources, screenshots, and release steps: `store-assets/README.md`.
+
+Tooling scripts run directly with Node.js 26's native TypeScript support, without a build step or an extra runner. Use explicit `.ts` extensions for relative imports and `import type` for types. The script configuration enforces erasable TypeScript syntax; runtime enums, parameter properties, and path aliases are not supported. Node only strips types at runtime, so `npm run typecheck` remains required. Tooling tests live under `tests/scripts/` and are checked separately from browser extension code.
 
 Automated store upload and review submission: [GitHub Actions publishing guide](store-assets/automated-publishing.md).
 
