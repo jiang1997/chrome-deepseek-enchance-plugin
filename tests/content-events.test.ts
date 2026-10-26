@@ -57,6 +57,44 @@ afterEach(() => {
 });
 
 describe("content script event flow", () => {
+  it("offers Visit for a selected URL and keeps the selection and draft on pointerdown", () => {
+    const composer = mountComposer("existing draft");
+    const url = "https://example.com/path?q=hello#section";
+    mountSelection(url);
+    showPopup();
+
+    const visit = getPopup().querySelector<HTMLAnchorElement>(".dse-popup-visit")!;
+    expect(visit.style.display).toBe("inline-block");
+    expect(visit.href).toBe(url);
+    expect(visit.target).toBe("_blank");
+    expect(visit.rel).toBe("noopener noreferrer");
+    expect(getButton().nextElementSibling).toBe(visit);
+    const event = new Event("pointerdown", { bubbles: true, cancelable: true });
+    visit.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(window.getSelection()?.toString()).toBe(url);
+    expect(composer.value).toBe("existing draft");
+
+    getButton().click();
+    expect(composer.value).toBe(`existing draft\n“${url}”\n\n`);
+  });
+
+  it("updates Visit when the selection changes and removes it for prose", () => {
+    mountComposer();
+    mountSelection("https://example.com");
+    showPopup();
+    const visit = getPopup().querySelector<HTMLAnchorElement>(".dse-popup-visit")!;
+
+    mountSelection("www.other.com/path");
+    showPopup();
+    expect(visit.href).toBe("https://www.other.com/path");
+
+    mountSelection("Ordinary selected text");
+    showPopup();
+    expect(visit.style.display).toBe("none");
+    expect(visit.hasAttribute("href")).toBe(false);
+  });
+
   it("shows the quote prompt after selecting response text", () => {
     mountComposer();
     mountSelection("Closures keep the lexical environment.");

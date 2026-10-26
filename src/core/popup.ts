@@ -1,5 +1,6 @@
 /** Quote prompt anchored to the message composer. */
 import type { RectLike } from "./selection";
+import { selectedWebUrl } from "./url";
 
 export const POPUP_ATTR = "data-dse-popup";
 export const POPUP_GAP = 8;
@@ -27,6 +28,7 @@ export class QuotePopup {
   private root: HTMLDivElement | null = null;
   private preview: HTMLSpanElement | null = null;
   private button: HTMLButtonElement | null = null;
+  private visitLink: HTMLAnchorElement | null = null;
   private hintTimer: number | null = null;
   private anchor: HTMLElement | null = null;
   private anchorObserver: ResizeObserver | null = null;
@@ -62,11 +64,21 @@ export class QuotePopup {
     btn.addEventListener("pointerdown", (e) => e.preventDefault());
     btn.addEventListener("click", () => this.callbacks.onQuote());
 
-    root.append(preview, btn);
+    const visit = document.createElement("a");
+    visit.className = "dse-popup-btn dse-popup-visit";
+    visit.textContent = "Visit";
+    visit.target = "_blank";
+    visit.rel = "noopener noreferrer";
+    visit.setAttribute("aria-label", "Visit selected URL (opens in a new tab)");
+    visit.style.display = "none";
+    visit.addEventListener("pointerdown", (e) => e.preventDefault());
+
+    root.append(preview, btn, visit);
     document.body.appendChild(root);
     this.root = root;
     this.preview = preview;
     this.button = btn;
+    this.visitLink = visit;
     return root;
   }
 
@@ -90,6 +102,12 @@ export class QuotePopup {
   /** Update provenance after history resolves without resetting focus or the busy button. */
   updatePreview(text: string, badge = ""): void {
     if (this.preview) this.preview.textContent = badge ? `Selected ${badge}: ${text}` : `Selected: ${text}`;
+    const url = selectedWebUrl(text);
+    if (this.visitLink) {
+      this.visitLink.style.display = url ? "inline-block" : "none";
+      if (url) this.visitLink.href = url;
+      else this.visitLink.removeAttribute("href");
+    }
   }
 
   reposition(): void {
@@ -154,6 +172,7 @@ export class QuotePopup {
     this.root = null;
     this.preview = null;
     this.button = null;
+    this.visitLink = null;
     this.visible = false;
     this.open = false;
     this.anchor = null;
@@ -179,6 +198,10 @@ export class QuotePopup {
     this.show(anchor, msg);
     if (!this.button || !this.preview) return;
     this.preview.textContent = msg;
+    if (this.visitLink) {
+      this.visitLink.style.display = "none";
+      this.visitLink.removeAttribute("href");
+    }
     this.button.disabled = true;
     this.hintTimer = window.setTimeout(() => {
       this.hide();

@@ -250,7 +250,9 @@ describe("content script async state management", () => {
     expect(getPopup().textContent).not.toContain("Selected sentence.");
     expect(getPopup().textContent).toContain("Insert failed");
     expect(getButton().disabled).toBe(true);
-    expect(getPopup().children).toHaveLength(2);
+    const visit = getPopup().querySelector<HTMLAnchorElement>(".dse-popup-visit")!;
+    expect(visit.style.display).toBe("none");
+    expect(visit.hasAttribute("href")).toBe(false);
     vi.advanceTimersByTime(1600);
     expect(getPopup().style.display).toBe("none");
     window.getSelection()!.removeAllRanges();

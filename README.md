@@ -22,6 +22,8 @@ Select text in a DeepSeek response and quote it into the composer to keep asking
 4. The selected text is appended to your current draft as `“selected text”`, with the cursor after the quote. The prompt closes after a successful insertion; insertion failures show a temporary hint in place of the preview. Select the text again to retry.
 5. Keep typing, edit the quote, and send the message yourself. Existing draft text is preserved. Press Escape to discard a pending quote without changing your draft.
 
+When the entire selection is an `http://`, `https://`, or `www.` address, a **Visit** link appears beside **Quote**. Click it to open the address in a new tab without changing your draft. Addresses starting with `www.` use HTTPS.
+
 While the selection remains active, the preview is temporarily hidden when switching browser tabs or when the composer leaves the viewport, and returns when the composer is visible again. Switching conversations or refreshing the page clears pending quotes.
 
 When the selection sits inside a conversation message, the quote also records where it came from, so the model can tell your words from its own:
