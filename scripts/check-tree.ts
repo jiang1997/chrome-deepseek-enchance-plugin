@@ -100,6 +100,40 @@ try {
   assert.equal(await page.locator("[data-dse-tree] .node").count(), 5);
   assert.equal(await page.locator("[data-dse-tree] .node.active").count(), 4);
   assert.equal(requests, 1);
+  // A scheduled refresh replaces SVG nodes while preserving keyboard focus.
+  const keyboardNode = page.locator('[data-dse-tree] .node[data-id="3"]');
+  await keyboardNode.focus();
+  const beforeRefresh = await keyboardNode.elementHandle();
+  assert.ok(beforeRefresh);
+  await page.waitForFunction((node) => !node.isConnected, beforeRefresh, { timeout: 20000 });
+  assert.equal(
+    await keyboardNode.evaluate((node) => {
+      const root = node.getRootNode();
+      return root instanceof ShadowRoot && root.activeElement === node;
+    }),
+    true,
+  );
+  await page.keyboard.press("Enter");
+  await page.getByText("Message located", { exact: true }).waitFor();
+  // A remembered node must not steal focus from the search box or the page.
+  const search = page.getByRole("searchbox", { name: "Search conversation messages" });
+  for (const target of [search, page.locator("#composer")]) {
+    await target.focus();
+    const previous = await keyboardNode.elementHandle();
+    assert.ok(previous);
+    // Dispatch without moving focus to the refresh button.
+    await page.getByRole("button", { name: "Refresh conversation tree" }).dispatchEvent("click");
+    await page.waitForFunction((node) => !node.isConnected, previous);
+    assert.equal(
+      await target.evaluate((element) => {
+        const root = element.getRootNode();
+        return (root instanceof ShadowRoot ? root.activeElement : document.activeElement) === element;
+      }),
+      true,
+    );
+    await previous.dispose();
+  }
+  await beforeRefresh.dispose();
   await page.locator('[data-dse-tree] .node[data-id="5"]').click();
   assert.match((await page.locator("[data-dse-tree] .preview-text").textContent()) ?? "", /<script>/);
   assert.equal(await page.evaluate(() => ("bad" in window ? window.bad : undefined)), undefined);

@@ -164,6 +164,9 @@ export class TreePanel {
   }
   private render(): void {
     const drawing = this.el(".drawing");
+    const focused = this.shadow.activeElement;
+    const focusedId = focused instanceof SVGElement && focused.matches(".node") ? focused.dataset.id : undefined;
+    let focusTarget: SVGGElement | null = null;
     drawing.replaceChildren();
     const query = this.el<HTMLInputElement>("input").value.trim().toLocaleLowerCase();
     let hits = 0;
@@ -203,6 +206,7 @@ export class TreePanel {
         `node ${node.role} ${active.has(node.id) || !this.tree.complete ? "active" : ""} ${match ? "match" : ""} ${this.viewing === node.id ? "viewing" : ""}`,
       );
       g.dataset.id = node.id;
+      if (node.id === focusedId) focusTarget = g;
       g.setAttribute("tabindex", "0");
       g.setAttribute("role", "button");
       g.setAttribute("aria-label", `${node.role === "user" ? "You" : "DeepSeek"}: ${node.content.slice(0, 100)}`);
@@ -248,6 +252,8 @@ export class TreePanel {
       : `${this.tree.nodes.size} messages`;
     if (this.selected && this.tree.nodes.has(this.selected)) this.preview(this.selected);
     else this.el(".preview").hidden = true;
+    // Restore only a node focused at render time; leave focus elsewhere untouched.
+    focusTarget?.focus({ preventScroll: true });
   }
   private preview(id: string): void {
     const node = this.tree.nodes.get(id);
