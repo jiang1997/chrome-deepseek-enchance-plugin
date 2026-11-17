@@ -6,6 +6,30 @@ export const messageItems = (): HTMLElement[] =>
   );
 export const conversationId = (): string | null =>
   location.pathname.match(/^\/a\/chat\/s\/([a-f0-9-]+)\/?$/i)?.[1] ?? null;
+
+/** Read a fallback preview without changing the live DOM or its selection. */
+function renderedAssistantContent(item: HTMLElement): string {
+  const hasThinking = !!item.querySelector(".ds-think-content");
+  const clone = item.cloneNode(true) as HTMLElement;
+  // Use known content/control hooks, not broad class substrings or role=button.
+  for (const noise of clone.querySelectorAll(
+    ".ds-think-content, .md-code-block-banner, .md-code-block-banner-wrap, .ds-icon, .ds-icon-button, button, script, style",
+  )) {
+    noise.remove();
+  }
+
+  // A selector list would return the first DOM match, including earlier Markdown.
+  const answer = clone.querySelector(".ds-assistant-message-main-content")?.textContent?.trim();
+  if (answer) return answer;
+
+  const markdown = [...clone.querySelectorAll(".ds-markdown")]
+    .filter((node) => !node.parentElement?.closest(".ds-markdown"))
+    .map((node) => node.textContent?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n\n");
+  return markdown || (hasThinking ? "Only thinking content is rendered." : "");
+}
+
 export function renderedTree(): ChatTree {
   const nodes: ChatTree["nodes"] = new Map();
   // Unknown offscreen ancestors are intentionally not invented.
@@ -15,9 +39,9 @@ export function renderedTree(): ChatTree {
     const id = item.getAttribute(MESSAGE_ITEM_ATTR);
     if (id === null) continue;
     const content =
-      item
-        .querySelector(role === "user" ? ".ds-collapsible-text" : ".ds-assistant-message-main-content, .ds-markdown")
-        ?.textContent?.trim() ?? "";
+      role === "user"
+        ? (item.querySelector(".ds-collapsible-text")?.textContent?.trim() ?? "")
+        : renderedAssistantContent(item);
     nodes.set(id, { id, role, content, parentId: null, children: [] });
   }
   return { nodes, roots: [...nodes.keys()], currentId: null, complete: false };

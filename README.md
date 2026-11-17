@@ -49,6 +49,8 @@ The panel and quote provenance share the current conversation's history from Dee
 
 If history cannot be read, the panel shows only currently rendered messages as separate nodes, with an explicit notice that their parent relationships are unknown. Other branches can be previewed, but automatic branch switching is not implemented; use DeepSeek's branch controls, then refresh the tree. Locating messages in a virtual list is best-effort and reports when a target cannot be mounted.
 
+In this DOM fallback, assistant previews prefer the formal answer container, then Markdown blocks outside the thinking area. Thinking blocks, code toolbars, and message controls are excluded from the preview without changing the page or its selection. Messages with only a thinking area show “Only thinking content is rendered.” instead of presenting that content as an answer.
+
 ## Screenshots
 
 | 1. Select & Quote | 2. Ask a Follow-up |
