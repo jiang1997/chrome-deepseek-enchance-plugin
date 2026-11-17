@@ -11,6 +11,9 @@
     .msg { max-width: 720px; margin: 16px 0; line-height: 1.7; }
     .composer-wrap { position: fixed; left: 220px; right: 0; bottom: 0; padding: 16px 24px; background: #fff; border-top: 1px solid #e5e7eb; }
     #composer { width: min(720px, 90%); min-height: 56px; }
+    .ds-virtual-list[data-virtual] { overflow-y: auto; overflow-anchor: none; position: relative; }
+    .ds-virtual-list[data-virtual] .ds-virtual-list-items { position: relative; }
+    .ds-virtual-list[data-virtual] .msg { margin: 0; padding: 12px; box-sizing: border-box; overflow: hidden; }
   </style>
 </head>
 <body>
@@ -24,6 +27,7 @@
       items carry data-virtual-list-item-key (message ID) and semantic content classes.
       Ordinals are counted in DOM order only when the visible window starts at zero.
     -->
+    <div class="ds-virtual-list" id="message-viewport">
     <div class="ds-virtual-list-items" id="messages">
       <div class="ds-virtual-list-visible-items" style="--dsl-virtual-list-transform-y: 0px">
       <div class="_9663006" data-virtual-list-item-key="1">
@@ -52,12 +56,14 @@
       </div>
       </div>
     </div>
+    </div>
   </main>
   <div class="composer-wrap">
     <!-- Scenario A: a textarea composer; to verify contenteditable, replace the element below with div[contenteditable] -->
     <textarea id="composer" aria-label="Send message" placeholder="Message DeepSeek"></textarea>
   </div>
 </body>
+<script src="/fixtures/mock-chat.js"></script>
 <script type="module">
   import "../src/styles/popup.css";
   import { init } from "../src/core/enhancer.ts";
