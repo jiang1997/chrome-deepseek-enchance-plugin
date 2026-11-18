@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { installMockDeepSeek } from "./lib/mock-deepseek.ts";
 import { checkDynamicChat } from "./lib/check-dynamic-chat.ts";
+import { checkTreeNavigation } from "./lib/check-tree-navigation.ts";
 
 // Exercise the production extension in both execution worlds on a mocked DeepSeek origin.
 // No real credentials or conversations are used.
@@ -158,6 +159,7 @@ try {
   assert.equal(await page.getByRole("button", { name: "Conversation tree", exact: true }).isVisible(), true);
   await page.close();
   await checkDynamicChat(context, mock);
+  await checkTreeNavigation(context, mock);
   assert.deepEqual(errors, []);
   console.log(
     "Production extension check passed: history bridge, quote ordinals, shared cache, branches, search, preview, navigation, fallback, themes, keyboard and message jump.",

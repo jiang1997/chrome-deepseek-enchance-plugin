@@ -128,6 +128,25 @@ export function activePath(tree: ChatTree): string[] {
   return path.reverse();
 }
 
+/** Search parent-before-child in tree order, including inactive branches; IDs are not positions. */
+export function searchTree(tree: ChatTree, query: string): string[] {
+  const needle = query.trim().toLocaleLowerCase();
+  if (!needle) return [];
+  const matches: string[] = [];
+  const stack = tree.roots.slice().reverse();
+  const seen = new Set<string>();
+  while (stack.length) {
+    const id = stack.pop();
+    if (id === undefined || seen.has(id)) continue;
+    seen.add(id);
+    const node = tree.nodes.get(id);
+    if (!node) continue;
+    if (node.content.toLocaleLowerCase().includes(needle)) matches.push(id);
+    for (const child of node.children.slice().reverse()) stack.push(child);
+  }
+  return matches;
+}
+
 /** Iterative leaf-spacing layout: independent of third-party implementation. */
 export function layoutTree(tree: ChatTree): {
   points: Map<string, { x: number; y: number }>;

@@ -54,6 +54,8 @@ The server checks the history method, session query, and synthetic authorization
 - Navigation while history and quote insertion are pending, network cancellation, and a fresh lookup in the new session.
 - HTTP 429/503 and an incompatible HTTP 200 payload falling back to rendered messages without inventing parent edges.
 
+`scripts/lib/check-tree-navigation.ts` adds a 120-message virtualized conversation with an inactive branch. It verifies search result ordering and wraparound, Enter/Shift+Enter, scrolling offscreen matches into the tree viewport without moving the chat, refresh state preservation, reading-position navigation, independent search/reading styles, empty results, and resetting on conversation changes. A successful run saves `tree-navigation.png` alongside the existing theme screenshots.
+
 Failures retain screenshots, `failure.txt`, the history request ledger `requests.json`, and `trace.zip` under `artifacts/tree-check/`, including the dynamic scenario pages.
 
 ## Fidelity limits

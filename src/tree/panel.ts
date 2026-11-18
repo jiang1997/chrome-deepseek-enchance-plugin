@@ -1,5 +1,5 @@
 import styles from "./tree.css?inline";
-import { activePath, layoutTree, type ChatTree } from "./model";
+import { activePath, layoutTree, searchTree, type ChatTree } from "./model";
 import { conversationId, jumpToMessage, messageItems, renderedTree } from "./deepseek";
 import { conversationHistory } from "./history-service";
 import { MESSAGE_ITEM_ATTR } from "../core/message-context";
@@ -20,6 +20,9 @@ export class TreePanel {
   private scrollFrame: number | null = null;
   private selected: string | null = null;
   private viewing: string | null = null;
+  private matches: string[] = [];
+  private matchId: string | null = null;
+  private revealOnLoad = false;
   private destroyed = false;
   private themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -34,7 +37,15 @@ export class TreePanel {
     root.innerHTML = `<button class="toggle" type="button" aria-expanded="false" aria-controls="tree-panel">${ICON}Conversation tree</button>
       <section class="panel" id="tree-panel" aria-label="Conversation tree" hidden>
         <header><div class="title-row"><h2>Conversation tree</h2><div class="tools"><button class="icon-button refresh" type="button" aria-label="Refresh conversation tree" title="Refresh">↻</button><button class="icon-button close" type="button" aria-label="Close conversation tree">×</button></div></div>
-          <input type="search" placeholder="Search messages…" aria-label="Search conversation messages"><div class="legend"><span>You</span><span>DeepSeek</span><span>Other branches</span></div></header>
+          <input type="search" placeholder="Search messages…" aria-label="Search conversation messages" aria-keyshortcuts="Enter Shift+Enter">
+          <div class="navigation-tools">
+            <button class="icon-button reading-position" type="button" aria-label="Locate current reading position" title="Show the message you are reading in the tree" disabled>◎ Reading position</button>
+            <div class="search-navigation" hidden>
+              <span class="search-count" role="status" aria-live="polite" aria-atomic="true"></span>
+              <button class="icon-button previous-match" type="button" aria-label="Previous search result" title="Previous result (Shift+Enter)" disabled>↑</button>
+              <button class="icon-button next-match" type="button" aria-label="Next search result" title="Next result (Enter)" disabled>↓</button>
+            </div>
+          </div><div class="legend"><span>You</span><span>DeepSeek</span><span>Other branches</span></div></header>
         <p class="status" role="status" aria-live="polite"></p><div class="viewport"><div class="drawing"></div></div>
         <div class="preview" hidden><div class="preview-label"></div><p class="preview-text"></p></div>
         <footer><span class="count"></span><span>Hover to preview · Click to jump</span></footer>
@@ -44,7 +55,19 @@ export class TreePanel {
     this.el<HTMLButtonElement>(".toggle").onclick = () => this.setOpen(true);
     this.el<HTMLButtonElement>(".close").onclick = () => this.setOpen(false);
     this.el<HTMLButtonElement>(".refresh").onclick = () => void this.refresh(false, true);
-    this.el<HTMLInputElement>("input").oninput = () => this.render();
+    this.el<HTMLInputElement>("input").oninput = () => {
+      this.matchId = this.selected = null;
+      this.render();
+      this.showSearchMatch();
+    };
+    this.el<HTMLButtonElement>(".previous-match").onclick = () => this.stepSearch(-1);
+    this.el<HTMLButtonElement>(".next-match").onclick = () => this.stepSearch(1);
+    this.el<HTMLButtonElement>(".reading-position").onclick = () => {
+      this.trackReading();
+      if (!this.viewing) return;
+      this.preview(this.viewing);
+      this.centerNode(this.viewing);
+    };
     this.shadow.addEventListener("keydown", this.onKey);
     window.addEventListener("scroll", this.onScroll, { capture: true, passive: true });
     this.themeQuery.addEventListener("change", this.syncTheme);
@@ -88,9 +111,16 @@ export class TreePanel {
     if (this.host.dataset.theme !== theme) this.host.dataset.theme = theme;
   };
   private onKey = (e: Event): void => {
-    if ((e as KeyboardEvent).key === "Escape" && this.open) {
+    const key = e as KeyboardEvent;
+    if (key.isComposing) return;
+    if (key.key === "Escape" && this.open) {
+      e.preventDefault();
       e.stopPropagation();
       this.setOpen(false);
+    } else if (key.key === "Enter" && e.target === this.el("input") && !key.altKey && !key.ctrlKey && !key.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.stepSearch(key.shiftKey ? -1 : 1);
     }
   };
   private checkNavigation = (): void => {
@@ -101,6 +131,9 @@ export class TreePanel {
     conversationHistory.syncConversation(conversationId());
     this.jumpController?.abort();
     this.selected = this.viewing = null;
+    this.matches = [];
+    this.matchId = null;
+    this.revealOnLoad = this.open;
     this.tree = { nodes: new Map(), roots: [], currentId: null, complete: false };
     this.el<HTMLInputElement>("input").value = "";
     this.el(".preview").hidden = true;
@@ -111,6 +144,7 @@ export class TreePanel {
   };
   private setOpen(open: boolean): void {
     this.open = open;
+    this.revealOnLoad = open;
     this.el(".panel").hidden = !open;
     this.el(".toggle").hidden = open;
     this.el(".toggle").setAttribute("aria-expanded", String(open));
@@ -146,7 +180,6 @@ export class TreePanel {
         this.status("Full conversation tree · Gray nodes preview other branches");
       }
       this.render();
-      this.trackReading();
     } catch (error) {
       if (controller.signal.aborted || location.pathname !== path) return;
       if (!this.tree.complete) this.tree = renderedTree();
@@ -164,12 +197,17 @@ export class TreePanel {
   }
   private render(): void {
     const drawing = this.el(".drawing");
+    const viewport = this.el(".viewport");
+    const { scrollTop, scrollLeft } = viewport;
     const focused = this.shadow.activeElement;
     const focusedId = focused instanceof SVGElement && focused.matches(".node") ? focused.dataset.id : undefined;
     let focusTarget: SVGGElement | null = null;
-    drawing.replaceChildren();
     const query = this.el<HTMLInputElement>("input").value.trim().toLocaleLowerCase();
-    let hits = 0;
+    this.matches = searchTree(this.tree, query);
+    const oldMatch = this.matchId;
+    if (!this.matchId || !this.matches.includes(this.matchId)) this.matchId = this.matches[0] ?? null;
+    if (oldMatch && this.selected === oldMatch && this.matchId !== oldMatch) this.selected = this.matchId;
+    const matches = new Set(this.matches);
     const layout = layoutTree(this.tree);
     const active = new Set(activePath(this.tree));
     const svg = document.createElementNS(NS, "svg");
@@ -197,8 +235,7 @@ export class TreePanel {
     for (const node of this.tree.nodes.values()) {
       const point = layout.points.get(node.id);
       if (!point) continue;
-      const match = !!query && node.content.toLocaleLowerCase().includes(query);
-      if (match) hits++;
+      const match = matches.has(node.id);
       const g = document.createElementNS(NS, "g");
       g.setAttribute("transform", `translate(${point.x},${point.y})`);
       g.setAttribute(
@@ -212,6 +249,7 @@ export class TreePanel {
       g.setAttribute("aria-label", `${node.role === "user" ? "You" : "DeepSeek"}: ${node.content.slice(0, 100)}`);
       for (const [radius, cls] of [
         [20, "hit"],
+        [14, "search-halo"],
         [10, "ring"],
         [5, "dot"],
       ] as const) {
@@ -240,20 +278,76 @@ export class TreePanel {
       });
       svg.append(g);
     }
-    if (this.tree.nodes.size) drawing.append(svg);
+    if (this.tree.nodes.size) drawing.replaceChildren(svg);
     else {
       const empty = document.createElement("p");
       empty.className = "empty";
       empty.textContent = "Messages and conversation branches will appear here.";
-      drawing.append(empty);
+      drawing.replaceChildren(empty);
     }
     this.el(".count").textContent = query
-      ? `${hits} matches / ${this.tree.nodes.size} messages`
+      ? `${this.matches.length} matches / ${this.tree.nodes.size} messages`
       : `${this.tree.nodes.size} messages`;
     if (this.selected && this.tree.nodes.has(this.selected)) this.preview(this.selected);
     else this.el(".preview").hidden = true;
     // Restore only a node focused at render time; leave focus elsewhere untouched.
     focusTarget?.focus({ preventScroll: true });
+    viewport.scrollTop = scrollTop;
+    viewport.scrollLeft = scrollLeft;
+    this.updateSearchNavigation();
+    this.trackReading();
+    if (this.revealOnLoad && this.tree.nodes.size) {
+      this.revealOnLoad = false;
+      const id = query ? this.matchId : this.viewing;
+      if (id) {
+        this.preview(id);
+        this.centerNode(id);
+      }
+    }
+  }
+  private updateSearchNavigation(): void {
+    const query = this.el<HTMLInputElement>("input").value.trim();
+    this.el(".search-navigation").hidden = !query;
+    const index = this.matchId ? this.matches.indexOf(this.matchId) + 1 : 0;
+    const count = this.el(".search-count");
+    count.textContent = query ? `${index} / ${this.matches.length}` : "";
+    count.setAttribute(
+      "aria-label",
+      index ? `Search result ${index} of ${this.matches.length}` : "No matching messages",
+    );
+    this.el<HTMLButtonElement>(".previous-match").disabled = !this.matches.length;
+    this.el<HTMLButtonElement>(".next-match").disabled = !this.matches.length;
+    for (const node of this.shadow.querySelectorAll<SVGGElement>(".node")) {
+      const current = node.dataset.id === this.matchId;
+      node.classList.toggle("current-match", current);
+      if (current) node.setAttribute("aria-current", "true");
+      else node.removeAttribute("aria-current");
+    }
+  }
+  private stepSearch(direction: number): void {
+    if (!this.matches.length) return;
+    const index = this.matchId ? this.matches.indexOf(this.matchId) : -1;
+    this.matchId = this.matches[(index + direction + this.matches.length) % this.matches.length] ?? null;
+    this.updateSearchNavigation();
+    this.showSearchMatch();
+  }
+  private showSearchMatch(): void {
+    if (!this.matchId) return;
+    this.preview(this.matchId);
+    this.centerNode(this.matchId);
+  }
+  /** Scroll only the tree viewport; search and reading controls must not move the chat page. */
+  private centerNode(id: string): void {
+    const node = [...this.shadow.querySelectorAll<SVGGElement>(".node")].find((el) => el.dataset.id === id);
+    if (!node) return;
+    const viewport = this.el(".viewport");
+    const rect = node.getBoundingClientRect();
+    const bounds = viewport.getBoundingClientRect();
+    viewport.scrollBy({
+      top: rect.top + rect.height / 2 - bounds.top - viewport.clientTop - viewport.clientHeight / 2,
+      left: rect.left + rect.width / 2 - bounds.left - viewport.clientLeft - viewport.clientWidth / 2,
+      behavior: "instant",
+    });
   }
   private preview(id: string): void {
     const node = this.tree.nodes.get(id);
@@ -288,14 +382,35 @@ export class TreePanel {
   private trackReading(): void {
     const items = messageItems();
     const center = innerHeight * 0.4;
-    const visible = items.filter((el) => {
+    const clips = new Map<Element, { top: number; bottom: number } | null>();
+    const visible = items.flatMap((el) => {
       const rect = el.getBoundingClientRect();
-      return rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight;
+      if (rect.height <= 0) return [];
+      let top = Math.max(0, rect.top);
+      let bottom = Math.min(innerHeight, rect.bottom);
+      for (let parent = el.parentElement; parent && bottom > top; parent = parent.parentElement) {
+        if (!clips.has(parent)) {
+          const clipped = /^(auto|scroll|hidden|clip)$/.test(getComputedStyle(parent).overflowY);
+          const bounds = parent.getBoundingClientRect();
+          clips.set(
+            parent,
+            clipped
+              ? { top: bounds.top + parent.clientTop, bottom: bounds.top + parent.clientTop + parent.clientHeight }
+              : null,
+          );
+        }
+        const clip = clips.get(parent);
+        if (clip) {
+          top = Math.max(top, clip.top);
+          bottom = Math.min(bottom, clip.bottom);
+        }
+      }
+      return bottom > top ? [{ el, top }] : [];
     });
-    const item = visible.sort(
-      (a, b) => Math.abs(a.getBoundingClientRect().top - center) - Math.abs(b.getBoundingClientRect().top - center),
-    )[0];
-    this.viewing = item?.getAttribute(MESSAGE_ITEM_ATTR) ?? null;
+    const item = visible.sort((a, b) => Math.abs(a.top - center) - Math.abs(b.top - center))[0];
+    const id = item?.el.getAttribute(MESSAGE_ITEM_ATTR) ?? null;
+    this.viewing = id && this.tree.nodes.has(id) ? id : null;
+    this.el<HTMLButtonElement>(".reading-position").disabled = !this.viewing;
     for (const g of this.shadow.querySelectorAll<SVGGElement>(".node"))
       g.classList.toggle("viewing", g.dataset.id === this.viewing);
   }

@@ -108,6 +108,26 @@ h2 {
 .icon-button:hover {
   background: var(--soft);
 }
+.icon-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.navigation-tools,
+.search-navigation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.navigation-tools {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.search-count {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
 input {
   display: block;
   width: 100%;
@@ -200,8 +220,16 @@ input {
 .node.viewing .ring {
   stroke: var(--user);
 }
-.node.match .ring {
-  stroke: #f59e0b;
+.node .search-halo {
+  fill: transparent;
+  stroke: transparent;
+}
+.node.match .search-halo {
+  fill: #f59e0b33;
+}
+.node.current-match .search-halo {
+  stroke: #d97706;
+  stroke-width: 2;
 }
 .node:hover .dot,
 .node:focus .dot {

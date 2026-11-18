@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activePath, layoutTree, parseHistory } from "../src/tree/model";
+import { activePath, layoutTree, parseHistory, searchTree } from "../src/tree/model";
 const history = (messages: Record<string, unknown>[], current: unknown) => ({
   data: { biz_data: { chat_messages: messages, chat_session: { current_message_id: current } } },
 });
@@ -8,6 +8,37 @@ const msg = (id: number, parent: number, role = "ASSISTANT", content = `message 
   parent_id: parent,
   role,
   content,
+});
+
+describe("conversation tree search", () => {
+  it("visits parents before descendants and searches inactive branches without sorting message IDs", () => {
+    const tree = parseHistory(
+      history(
+        [
+          msg(31, 7, "USER", "Needle child"),
+          msg(99, 0, "USER", "Needle root"),
+          msg(7, 99, "ASSISTANT", "Needle active answer"),
+          msg(2, 99, "ASSISTANT", "Needle alternative answer"),
+        ],
+        31,
+      ),
+    );
+    expect(searchTree(tree, "  NEEDLE  ")).toEqual(["99", "7", "31", "2"]);
+  });
+
+  it("searches separate fallback roots without inventing edges", () => {
+    const tree = parseHistory(history([msg(9, 0, "USER", "first match"), msg(1, 0, "ASSISTANT", "second match")], 1));
+    tree.complete = false;
+    expect(searchTree(tree, "match")).toEqual(["9", "1"]);
+  });
+
+  it("treats punctuation and markup as literal search text", () => {
+    const tree = parseHistory(history([msg(1, 0, "USER", "a.*b <script>example</script>")], 1));
+    expect(searchTree(tree, ".*")).toEqual(["1"]);
+    expect(searchTree(tree, "<script>")).toEqual(["1"]);
+    expect(searchTree(tree, "a.+b")).toEqual([]);
+    expect(searchTree(tree, "  ")).toEqual([]);
+  });
 });
 
 describe("conversation tree", () => {
