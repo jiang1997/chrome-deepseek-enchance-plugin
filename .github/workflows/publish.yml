@@ -43,6 +43,13 @@ jobs:
       - name: Build store ZIP
         if: inputs.mode != 'status'
         run: npm run pack:zip
+      - name: Install Chromium
+        if: inputs.mode != 'status'
+        run: npx playwright install --with-deps chromium
+      - name: Check production extension in Chromium
+        if: inputs.mode != 'status'
+        timeout-minutes: 5
+        run: npm run check:tree
       - name: Preserve ZIP and checksum
         if: inputs.mode != 'status'
         run: sha256sum release/*-unpacked.zip > release/SHA256SUMS
